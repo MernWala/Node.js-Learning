@@ -56,3 +56,6 @@ Thumbs.db
 # Tests cache
 .jest/
 .nyc_output/
+
+# upload directory
+uploads/

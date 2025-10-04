@@ -9,6 +9,8 @@ import VideoRoutes from "./routes/video.js";
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(cors(corsOptions));
 app.use(helmet());
 
