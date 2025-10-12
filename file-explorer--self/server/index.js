@@ -1,8 +1,8 @@
 // index.js
 import cluster from "cluster";
 import os from "os";
-import app from "./app.js";
-import { port } from "./config.js";
+import app from "./src/app.js";
+import { port } from "./src/config.js";
 
 if (cluster.isPrimary) {
   const numCPUs = os.cpus().length;

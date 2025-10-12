@@ -2,5 +2,8 @@
     "type": "module",
     "scripts": {
         "start": "npx nodemon app.js"
+    },
+    "dependencies": {
+        "mime-types": "^3.0.1"
     }
 }
