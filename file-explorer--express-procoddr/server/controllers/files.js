@@ -1,5 +1,5 @@
-import { createWriteStream, createReadStream } from "fs"
-import { readdir, stat, rm, rename, rmdir, statfs } from "fs/promises";
+import { createWriteStream, createReadStream, statfsSync } from "fs"
+import { readdir, stat, rm, rename, } from "fs/promises";
 
 export const handleCreate = (req, res) => {
     try {
@@ -90,13 +90,13 @@ export const handleUpdate = async (req, res) => {
         const oldArr = oldpath.split("/");
         const newArr = newpath.split("/");
 
-        const stats = await statfs(`./uploads/${newpath}`);
+        const stats = await stat(`./uploads/${newpath}`);
 
         return res.status(200).json({
             status: "File renamed succesfully",
             stats: {
                 file: newArr[newArr.length - 1],
-                type: stats.isDirectory ? "dir" : "file",
+                type: stats.isDirectory() ? "dir" : "file",
                 path: newpath,
                 oldname: oldArr[oldArr.length - 1],
             },
