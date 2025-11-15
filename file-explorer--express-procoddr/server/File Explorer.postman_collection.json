@@ -1,0 +1,281 @@
+{
+	"info": {
+		"_postman_id": "6e376a80-41eb-42f3-b2a5-9fa601830b56",
+		"name": "File Explorer",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "26675704",
+		"_collection_link": "https://brothers-5242.postman.co/workspace/Brothers-Workspace~659b9f6f-0b27-4522-893d-ec8323c33142/collection/26675704-6e376a80-41eb-42f3-b2a5-9fa601830b56?action=share&source=collection_link&creator=26675704"
+	},
+	"item": [
+		{
+			"name": "Directory requests",
+			"item": [
+				{
+					"name": "GET readDir",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/dir/../../../../test",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"dir",
+								"..",
+								"..",
+								"..",
+								"..",
+								"test"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET readDir/:path*",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/dir",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"dir"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST createDirectory",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"New Folder\",\r\n    \"target\": \"/\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/dir",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"dir"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE deleteDirectory",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "filetype",
+								"value": "dir",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/files/../temp",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"files",
+								"..",
+								"temp"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Files request",
+			"item": [
+				{
+					"name": "GET readFile/:filename",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Visualization Script",
+									"// Visualization Script",
+									"const template = `",
+									"{{#if isImage}}",
+									"  <div style=\"text-align:center;\">",
+									"    <h3>Image Preview</h3>",
+									"    <img src=\"data:{{mimeType}};base64,{{base64Data}}\" style=\"max-width:100%;max-height:400px;border:1px solid #ccc;\"/>",
+									"    <p style=\"color: #888;\">(Binary image data cannot be visualized as a chart. Preview shown above.)</p>",
+									"  </div>",
+									"{{else}}",
+									"  <div style=\"text-align:center;\">",
+									"    <h3>No Chart Visualization Available</h3>",
+									"    <p style=\"color: #888;\">The response is not suitable for charting (binary or non-numeric data).</p>",
+									"  </div>",
+									"{{/if}}",
+									"`;",
+									"",
+									"function createPayload() {",
+									"    // Try to detect if the response is an image by checking the Content-Type header",
+									"    const contentType = pm.response.headers.get('Content-Type') || '';",
+									"    const isImage = contentType.startsWith('image/');",
+									"    let base64Data = '';",
+									"    if (isImage) {",
+									"        // pm.response.stream is available for binary data in Postman",
+									"        // Convert to base64 for embedding",
+									"        if (pm.response.stream) {",
+									"            base64Data = pm.response.stream.toString('base64');",
+									"        } else {",
+									"            // Fallback: try to use responseBody (may not work for all binary types)",
+									"            base64Data = btoa(pm.response.text());",
+									"        }",
+									"    }",
+									"    return {",
+									"        isImage,",
+									"        mimeType: contentType,",
+									"        base64Data",
+									"    };",
+									"}",
+									"pm.visualizer.set(template, createPayload());"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/files",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST uploadFile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "filename",
+								"value": "my-img.jpg",
+								"type": "text"
+							},
+							{
+								"key": "target",
+								"value": "../../../",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {
+								"src": "postman-cloud:///1f0c1972-012f-40a0-a6de-26a0485d30f3"
+							}
+						},
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/files",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "PATCH renameFile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "oldpath",
+								"value": "my-img.jpg",
+								"type": "text"
+							},
+							{
+								"key": "newpath",
+								"value": "me-rudra2.jpg",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/files",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"files"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE deleteFile",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "filetype",
+								"value": "file",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}{{host}}{{port}}/api/{{version}}/files/IMG_20201021_152833.jpg",
+							"host": [
+								"{{scheme}}{{host}}{{port}}"
+							],
+							"path": [
+								"api",
+								"{{version}}",
+								"files",
+								"IMG_20201021_152833.jpg"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -12,7 +12,7 @@ const Home = () => {
     const [rename, setRename] = useState(null);
 
     useEffect(() => {
-        fetch(`http://localhost:5000/files${fullPath.length > 1 ? `/dir/${fullPath}` : ""}`, {
+        fetch(`http://localhost:5000/api/v1/${fullPath.length > 1 ? "dir" : "files"}/${fullPath}`, {
             method: "GET",
             headers: {
                 "content-type": "application/json"
@@ -29,9 +29,9 @@ const Home = () => {
         if (file === null) return;
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "http://localhost:5000/files/", true);
+        xhr.open("POST", "http://localhost:5000/api/v1/files/", true);
         xhr.setRequestHeader("filename", file?.[0].name);
-        xhr.setRequestHeader("path", location.pathname.replace(/^\/directory\/?/, ""));
+        xhr.setRequestHeader("target", location.pathname.replace(/^\/directory\/?/, ""));
 
         // TO track upload finished or not
         xhr.addEventListener("load", (e) => {
@@ -57,7 +57,7 @@ const Home = () => {
     }
 
     const handleDelete = async ({ path, type }) => {
-        const res = await fetch(`http://localhost:5000/files/${path}`, {
+        const res = await fetch(`http://localhost:5000/api/v1/files/${path}`, {
             method: "DELETE",
             headers: {
                 "content-type": "application/json",
@@ -93,7 +93,7 @@ const Home = () => {
         e.preventDefault();
 
         let newname = rename?.type === "dir" ? (rename?.newName) : (rename?.newName + "." + rename?.extention);
-        const fetchApi = await fetch("http://localhost:5000/files/", {
+        const fetchApi = await fetch("http://localhost:5000/api/v1/files/", {
             method: "PATCH",
             headers: {
                 "content-type": "application/json",
@@ -113,12 +113,12 @@ const Home = () => {
         const name = prompt("Enter folder name", "New Folder");
         const path = location.pathname.replace(/^\/directory\/?/, "");
 
-        const fetchApi = await fetch(`http://localhost:5000/files/dir`, {
+        const fetchApi = await fetch(`http://localhost:5000/api/v1/dir`, {
             method: "POST",
             headers: {
                 "content-type": "application/json",
             },
-            body: JSON.stringify({ name, path })
+            body: JSON.stringify({ name, target: path })
         })
 
         const res = await fetchApi.json();
@@ -155,9 +155,9 @@ const Home = () => {
                             :
                             <>
                                 <button type="button">
-                                    <a target="_blank" href={`http://localhost:5000/files/${path}?action=open`}>Preview</a>
+                                    <a target="_blank" href={`http://localhost:5000/api/v1/files/${path}?action=open`}>Preview</a>
                                 </button>
-                                <button type="button"><a target="_blank" href={`http://localhost:5000/files/${path}?action=download`}> Download </a></button>
+                                <button type="button"><a target="_blank" href={`http://localhost:5000/api/v1/files/${path}?action=download`}> Download </a></button>
                             </>
                         }
                         <button type="button" onClick={() => handleClickRename({ path, type })}> Rename </button>

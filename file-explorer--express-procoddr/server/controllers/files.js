@@ -1,14 +1,18 @@
 import { createWriteStream, createReadStream, statfsSync } from "fs"
 import { readdir, stat, rm, rename, } from "fs/promises";
+import path from "node:path";
 
 export const handleCreate = (req, res) => {
     try {
-        const { filename, path } = req.headers;
+        const { filename, target } = req.headers;
         if (!filename) {
             return res.status(400).json({ status: "No filename found in headers" })
         }
 
-        const stream = createWriteStream(`./uploads/${path}${path.length > 0 ? "/" : ""}${filename}`);
+        let fullpath = path.join("/", target);
+        fullpath = path.join("./uploads", fullpath, filename);
+
+        const stream = createWriteStream(fullpath);
         req.pipe(stream);
 
         stream.on("finish", () => {
@@ -19,7 +23,7 @@ export const handleCreate = (req, res) => {
                     file: {
                         file: filename,
                         type: "file",
-                        path: path.concat(path.length > 0 ? "/" : "").concat(filename),
+                        path: fullpath,
                     }
                 });
             }
@@ -43,12 +47,20 @@ export const handleRead = async (req, res) => {
         const { filepath } = req.params
         const { action } = req.query
 
+        const filepathStr = filepath?.join("/");
+        let resolvedPath = null;
+
+        if (filepath) {
+            resolvedPath = path.join("/", filepathStr);
+            resolvedPath = path.join("./uploads", resolvedPath);
+        }
+
         // Case *: No filename means need to serve root directory
-        if (!filepath) {
+        if (!resolvedPath) {
             const resData = [];
             const files = await readdir("./uploads");
             for (const file of files) {
-                const s = await stat(`./uploads/${file}`);
+                const s = await stat(path.join("./uploads", file));
                 resData.push({ type: s.isDirectory() ? "dir" : "file", file, path: file });
             }
 
@@ -56,17 +68,16 @@ export const handleRead = async (req, res) => {
         }
 
         // Case 2: Its a file
-        const filename = filepath.join("/");
-        const stats = await stat(`./uploads/${filename}`);
-        const mimeType = res.type(filename);
+        const stats = await stat(resolvedPath);
+        const mimeType = res.type(resolvedPath);
         res.setHeader("content-type", mimeType);
         res.setHeader("content-length", stats.size);
 
         if (action === "download") {
-            res.setHeader("content-disposition", `attachment; filename=${filename}`);
+            res.setHeader("content-disposition", `attachment; filename=${path.basename(resolvedPath)}`);
         }
 
-        const stream = createReadStream(`./uploads/${filename}`);
+        const stream = createReadStream(resolvedPath);
         stream.pipe(res);
 
         stream.on("error", (err) => {
@@ -76,29 +87,32 @@ export const handleRead = async (req, res) => {
             }
         });
     } catch (error) {
-        console.log("Getting error on controller -> handleRead");
-        return res.json({ status: "Server Error" });
+        console.log("Getting error on controller -> handleRead", error);
+        return res.json({ status: false, message: error?.message });
     }
 };
 
 export const handleUpdate = async (req, res) => {
     try {
 
-        const { oldpath, newpath } = req.headers;
-        await rename(`./uploads/${oldpath}`, `./uploads/${newpath}`)
+        let { oldpath, newpath } = req.headers;
 
-        const oldArr = oldpath.split("/");
-        const newArr = newpath.split("/");
+        oldpath = path.join("/", oldpath);
+        oldpath = path.join("./uploads", oldpath);
+        
+        newpath = path.join("/", newpath);
+        newpath = path.join("./uploads", newpath);
 
-        const stats = await stat(`./uploads/${newpath}`);
+        await rename(oldpath, newpath);
+        const stats = await stat(newpath);
 
         return res.status(200).json({
             status: "File renamed succesfully",
             stats: {
-                file: newArr[newArr.length - 1],
+                file: path.basename(newpath),
                 type: stats.isDirectory() ? "dir" : "file",
                 path: newpath,
-                oldname: oldArr[oldArr.length - 1],
+                oldname: path.basename(oldpath),
             },
         });
 
@@ -112,18 +126,38 @@ export const handleDelete = async (req, res) => {
     try {
         const { filepath } = req.params;
         const { filetype } = req.headers;
-        const filename = filepath.join("/");
 
-        if (filetype === "dir") {
-            await rm(`./uploads/${filename}`, { recursive: true, force: true });
-        } else {
-            await rm(`./uploads/${filename}`);
+        let filename = filepath.join("/");
+        filename = path.join("/", filename);
+        filename = path.join("./uploads", filename);
+
+        let isAvailable = null;
+        try {
+            isAvailable = await stat(filename);
+        } catch (error) {
+            return res.status(404).json({
+                status: false,
+                message: `${filetype === "dir" ? "Directory" : "File"} not found.`
+            });
         }
 
-        return res.json({ status: `${filetype === "dir" ? "Directory" : "File"} Deleted`, deleted: filepath[filepath.length - 1] })
+        if (isAvailable) {
+            if (filetype === "dir") {
+                await rm(filename, { recursive: true, force: true });
+                return res.json({ status: "Directory Deleted", deleted: path.basename(filename) });
+            } else if (filetype === "file") {
+                await rm(filename);
+                return res.json({ status: "File Deleted", deleted: path.basename(filename) });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid File!",
+                })
+            }
+        }
 
     } catch (error) {
         console.log("Getting error on controller -> handleDelete");
-        return res.json({ status: "Server Error" })
+        return res.json({ status: "Server Error" });
     }
 };
