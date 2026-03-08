@@ -12,7 +12,7 @@ const version = "v2";
 app.use(cors({}));
 app.use(express.json());
 
-const logger = new AppLogger("./src/index.ts");
+const logger = new AppLogger("./src/index.ts"); 
 
 app.get("/health", (req: Request, res: Response) => {
     return res.json({
@@ -29,6 +29,5 @@ app.use(`/api/${version}/dir/`, DirectoryRoutes());
 app.use(`/api/${version}/file/`, FileRoutes());
 
 app.listen(config.port, () => {
-    logger.info(`Server is running at PORT: ${config.port}`);
-    console.log(`Server is running at PORT: ${config.port}`);
+    logger.info(`Server is running at PORT: ${config.port}`, { port: config.port });
 });

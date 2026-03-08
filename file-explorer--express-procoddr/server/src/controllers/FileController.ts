@@ -15,10 +15,11 @@ export class FileController {
     }
 
     async create(req: Request, res: Response): Promise<Response> {
-        this.logger.info("CREATE method called.");
+        this.logger.info("CREATE method called.", {});
         try {
             const { name, folder } = req.headers as { name: string, folder: string | null };
             if (!name) {
+                this.logger.info("Validation failed: File name not provided", {});
                 return res.status(400).json(this.struct.res({
                     success: false,
                     message: "File name not found.",
@@ -27,10 +28,11 @@ export class FileController {
             }
 
             const filename: string = Array.isArray(name) ? name.join(" ") : name;
+            this.logger.info(`Processing file upload`, { filename, folder });
             const response = await this.service.create(filename, req, folder);
             return res.status(200).json(response);
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, {});
             return res.status(500).json(this.struct.res({
                 success: false,
                 error: "Server Error",
@@ -41,20 +43,22 @@ export class FileController {
     }
 
     async read(req: Request, res: Response): Promise<Response | void> {
-        this.logger.info("READ method called.");
+        this.logger.info("READ method called.", {});
         try {
             const { id } = req.params as { id: string };
             const { action } = req.query as { action: action };
 
             if (!id) {
+                this.logger.info("Reading root files", {});
                 const response = await this.service.readRoot();
                 return res.status(response?.status ?? 200).json(response);
             }
 
+            this.logger.info(`Reading file with action`, { id, action });
             const response = await this.service.read(id, res, action);
             return res.status(response?.status ?? 200).json(response);
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, {});
             if (!(error instanceof Error)) {
                 const re = error as response
                 return res.status(re?.status ?? 404).json(this.struct.res(re));
@@ -72,9 +76,10 @@ export class FileController {
 
     async rename(req: Request, res: Response): Promise<Response> {
         try {
-            this.logger.info("RENAME method called.");
+            this.logger.info("RENAME method called.", {});
             const { id, name } = req.body as { id: string, name: string }
             if (!id) {
+                this.logger.info("Validation failed: File id is missing", {});
                 return res.status(404).json(this.struct.res({
                     success: false,
                     message: "File id is missing",
@@ -83,6 +88,7 @@ export class FileController {
             }
 
             if (!name) {
+                this.logger.info("Validation failed: File name is missing", {});
                 return res.status(404).json(this.struct.res({
                     success: false,
                     message: "File name is missing",
@@ -90,10 +96,11 @@ export class FileController {
                 }));
             }
 
+            this.logger.info(`Processing rename`, { id, newName: name });
             const response = await this.service.rename(id, name);
             return res.status(response?.status ?? 200).json(response);
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, {});
             return res.status(500).json(this.struct.res({
                 success: false,
                 error: "Server Error",
@@ -107,9 +114,10 @@ export class FileController {
     async delete(req: Request, res: Response): Promise<Response> {
         try {
             const { id } = req.params as { id: string };
-            const { folder = "root" } = req.headers as { folder: string | null };
+            const { folder } = req.headers as { folder: string | null };
 
             if (!id) {
+                this.logger.info("Validation failed: File id is missing", {});
                 return res.status(404).json(this.struct.res({
                     success: false,
                     message: "File id is missing",
@@ -117,10 +125,11 @@ export class FileController {
                 }));
             }
 
+            this.logger.info(`Processing delete`, { id, folder });
             const response = await this.service.delete(id, folder);
             return res.status(response?.status ?? 200).json(response);
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, {});
             return res.status(500).json(this.struct.res({
                 success: false,
                 error: "Server Error",

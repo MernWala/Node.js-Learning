@@ -1,11 +1,12 @@
 import { directory, file, Structure } from "../util/Structure";
-import { writeFile } from "node:fs/promises"
+import { writeFile, unlink } from "node:fs/promises"
 import { writeFileSync } from "node:fs"
 import Files from "../../db/files.json" with { type: 'json' };
 import Directory from "../../db/directory.json" with { type: 'json' };
 import path from "node:path";
 import mime from 'mime';
 import { randomUUID } from "node:crypto";
+import { AppLogger } from "../util/AppLogger";
 
 export class FileRepository {
     private fileDB: file[] = Files;
@@ -13,6 +14,7 @@ export class FileRepository {
     private struct: Structure = new Structure();
     private dbPath: string = "./db/files.json";
     private dirDbPath: string = "./db/directory.json";
+    private logger: AppLogger = new AppLogger("FileRepository");
 
     constructor() {
         if (Files.length === 0) {
@@ -34,28 +36,41 @@ export class FileRepository {
     }
 
     async insert({ id, filename, parentDir, size, }: file, folder: string | null): Promise<file> {
+        this.logger.info(`Inserting file: ${filename}`, { id, filename, folder, size });
         const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
         const temp: file = this.struct.file({ id, filename, parentDir, size, fileType: _type });
         this.fileDB.push(temp);
         await writeFile(this.dbPath, JSON.stringify(this.fileDB));
         await this.pushFileToDirectory(folder ?? null, temp.id);
-
+        this.logger.info(`File inserted successfully: ${filename}`, { id, filename });
         return this.struct.file(temp);
     };
 
     get(id: string): file | null {
         const res = this.fileDB.find(f => f.id === id);
-        if (res?.filename) return res;
+        if (res?.filename) {
+            this.logger.info(`File retrieved: ${res.filename}`, { id, filename: res.filename });
+            return res;
+        }
+        this.logger.info(`File not found`, { id });
         return null;
     };
 
     directoryExists(id: string): boolean {
-        return this.dirDB.some(d => d.id === id);
+        const exists = this.dirDB.some(d => d.id === id);
+        if (exists) {
+            this.logger.info(`Directory validation: EXISTS`, { directoryId: id });
+        } else {
+            this.logger.info(`Directory validation: NOT FOUND`, { directoryId: id });
+        }
+        return exists;
     };
 
     getAll(folder: string | null): file[] {
         if (!folder) {
-            return this.fileDB.filter(f => (f.parentDir?.length === 0 || f.parentDir === null) && (f.filename && f.filename.length > 0));
+            const files = this.fileDB.filter(f => (f.parentDir?.length === 0 || f.parentDir === null) && (f.filename && f.filename.length > 0));
+            this.logger.info(`Retrieved all root files`, { count: files.length });
+            return files;
         }
         // Return files for specific folder
         const dir = this.dirDB.find((d: any) => d.id === folder);
@@ -66,14 +81,19 @@ export class FileRepository {
                 if (file) files.push(file);
             }
         }
+        this.logger.info(`Retrieved files from folder`, { folderId: folder, count: files.length });
         return files;
     }
 
     async rename({ id, filename }: file): Promise<file | null> {
+        this.logger.info(`Renaming file`, { id, newFilename: filename });
         const curr = this.fileDB.find(f => f.id === id);
         let newName
 
-        if (!curr) return null;
+        if (!curr) {
+            this.logger.info(`Rename failed: File not found`, { id });
+            return null;
+        }
 
         const temp = this.struct.file({ ...curr, filename, });
         const tempArr = this.fileDB.filter(f => f?.id !== curr?.id);
@@ -85,21 +105,40 @@ export class FileRepository {
         tempArr.push(result);
         await writeFile(this.dbPath, JSON.stringify(tempArr));
         this.fileDB = tempArr;
+        this.logger.info(`File renamed successfully`, { id, oldName: curr.filename, newName: result.filename });
         return result;
     };
 
     async delete(id: string, folder: string | null): Promise<file | null> {
+        this.logger.info(`Deleting file`, { id, folder });
         const temp = this.fileDB.find(f => f?.id === id);
-        if (!temp) return null;
+        if (!temp) {
+            this.logger.info(`Delete failed: File not found`, { id });
+            return null;
+        }
+        
+        // Delete physical file from uploads directory
+        try {
+            const filepath = `./uploads/${temp.id}${path.extname(temp.filename ?? "")}`;
+            await unlink(filepath);
+            this.logger.info(`Physical file deleted from disk`, { id, filepath });
+        } catch (error) {
+            this.logger.error(error as Error, { id, message: "Failed to delete physical file" });
+        }
+        
         const tempArr = this.fileDB.filter(f => f?.id !== id);
         await writeFile(this.dbPath, JSON.stringify(tempArr));
         this.fileDB = tempArr;
 
         // Remove file from directory payload
-        if (folder || folder === "root") {
+        if (folder) {
             await this.removeFileFromDirectory(folder, temp.id);
+        } else {
+            // Handle root directory case
+            await this.removeFileFromDirectory("root", temp.id, true);
         }
-
+        
+        this.logger.info(`File deleted successfully`, { id, filename: temp.filename });
         return temp;
     };
 

@@ -22,7 +22,7 @@ export class FileService {
     }
 
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
-        this.logger.info("Hitted FileService:create method");
+        this.logger.info("Hitted FileService:create method", { filename, folder });
 
         // Validate folder exists if folder ID is provided
         if (folder && !this.repo.directoryExists(folder)) {
@@ -47,6 +47,7 @@ export class FileService {
                 stream.on("finish", async () => {
                     try {
                         const st = await stat(filepath);
+                        this.logger.info(`File written to disk successfully`, { id, filename: name, size: st.size });
                         await this.repo.insert(this.struct.file({
                             id,
                             filename: name,
@@ -63,7 +64,7 @@ export class FileService {
                             status: 201
                         }));
                     } catch (error) {
-                        this.logger.error(error as Error);
+                        this.logger.error(error as Error, { id, filename: name });
                         resolve(this.struct.res({
                             success: false,
                             error: "Failed to save file metadata",
@@ -75,7 +76,7 @@ export class FileService {
                 });
 
                 stream.on("error", (error) => {
-                    this.logger.error(error as Error);
+                    this.logger.error(error as Error, { id, filename: name, filepath });
                     resolve(this.struct.res({
                         success: false,
                         error: "File write error",
@@ -85,14 +86,14 @@ export class FileService {
                     }));
                 });
             } catch (error) {
-                this.logger.error(error as Error);
+                this.logger.error(error as Error, {});
                 reject(error);
             }
         });
     };
 
     read = async (id: string, res: Response, action: FileAction): Promise<response> => {
-        this.logger.info("Hitted FileService:read method");
+        this.logger.info("Hitted FileService:read method", { id, action });
 
         return new Promise(async (resolve, reject) => {
             try {
@@ -139,7 +140,7 @@ export class FileService {
                     });
 
                     stream.on("error", (err) => {
-                        this.logger.error(err as Error);
+                        this.logger.error(err as Error, { id, filepath });
                         if (!res.headersSent) {
                             resolve(this.struct.res({
                                 success: false,
@@ -151,18 +152,20 @@ export class FileService {
                     });
                 }
             } catch (error) {
-                this.logger.error(error as Error);
+                this.logger.error(error as Error, {});
                 reject(error)
             }
         });
     };
 
     readRoot = (): response => {
-        this.logger.info("Hitted FileService:readRoot method");
+        this.logger.info("Hitted FileService:readRoot method", {});
         try {
             const all = this.repo.getAll(null).filter(f => f.id !== "<dummy_file>");
+            this.logger.info(`Root files loaded`, { totalFiles: all.length });
 
             if (!all || all.length === 0) {
+                this.logger.info(`No files found in root`, {});
                 return this.struct.res({
                     success: false,
                     payload: null,
@@ -180,7 +183,7 @@ export class FileService {
                 status: 200
             });
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, {});
             throw error;
         }
     }
@@ -197,16 +200,21 @@ export class FileService {
                 status: curr ? 200 : 400
             });
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, { id, filename });
             throw error;
         }
     };
 
     delete = async (id: string, folder: string | null): Promise<response | null> => {
+        this.logger.info(`Delete request initiated`, { id, folder: folder ?? "(root)" });
         try {
             const del = await this.repo.delete(id, folder);
-            if (!del) return null;
+            if (!del) {
+                this.logger.info(`Delete failed: File not found in repository`, { id });
+                return null;
+            }
 
+            this.logger.info(`File deleted successfully from all layers`, { id, filename: del.filename });
             return this.struct.res({
                 success: true,
                 message: "File Deleted",
@@ -218,7 +226,7 @@ export class FileService {
                 }
             });
         } catch (error) {
-            this.logger.error(error as Error);
+            this.logger.error(error as Error, { id, folder });
             throw error;
         }
     };

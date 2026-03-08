@@ -15,7 +15,7 @@ export class DirectoryService {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         throw error;
     //     }
     // }
@@ -24,7 +24,7 @@ export class DirectoryService {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         throw error;
     //     }
     // }
@@ -33,7 +33,7 @@ export class DirectoryService {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         throw error;
     //     }
     // }
@@ -42,7 +42,7 @@ export class DirectoryService {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         throw error;
     //     }
     // }

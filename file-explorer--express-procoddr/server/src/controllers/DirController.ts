@@ -18,7 +18,7 @@ export class DirectoryController {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         return res.status(500).json(this.struct.res({
     //             success: false,
     //             error: Error("Server Error"),
@@ -33,7 +33,7 @@ export class DirectoryController {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         return res.status(500).json(this.struct.res({
     //             success: false,
     //             error: Error("Server Error"),
@@ -48,7 +48,7 @@ export class DirectoryController {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         return res.status(500).json(this.struct.res({
     //             success: false,
     //             error: Error("Server Error"),
@@ -63,7 +63,7 @@ export class DirectoryController {
     //     try {
 
     //     } catch (error) {
-    //         this.logger.error(error as Error);
+    //         this.logger.error(error as Error, {});
     //         return res.status(500).json(this.struct.res({
     //             success: false,
     //             error: Error("Server Error"),
