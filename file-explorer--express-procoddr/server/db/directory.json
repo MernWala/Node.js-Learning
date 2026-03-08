@@ -1,0 +1,22 @@
+[
+    {
+        "id": "<dummy_folder>",
+        "name": "Dummy Folder",
+        "parentDir": "*",
+        "payload": {
+            "files": [],
+            "directory": []
+        }
+    },
+    {
+        "id": "994176b5-381d-4b55-8750-7882cfdc01ba",
+        "name": "",
+        "parentDir": "root",
+        "payload": {
+            "directory": [],
+            "files": [
+                "b65e474b-0081-4f2b-802d-28f71236dfd5"
+            ]
+        }
+    }
+]
