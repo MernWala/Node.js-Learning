@@ -23,14 +23,12 @@ export class FileService {
 
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
         this.logger.info("Hitted FileService:create method", { filename, folder });
-
         // Validate folder exists if folder ID is provided
         if (folder && !this.repo.directoryExists(folder)) {
             return this.struct.res({
                 success: false,
                 error: "Folder not found",
                 message: `Folder with ID '${folder}' does not exist in database`,
-                payload: null,
                 status: 404
             });
         }
@@ -42,7 +40,6 @@ export class FileService {
                 const filepath = `./uploads/${id}${path.extname(name)}`;
 
                 const stream = createWriteStream(filepath);
-                req.pipe(stream);
 
                 stream.on("finish", async () => {
                     try {
@@ -60,60 +57,50 @@ export class FileService {
                             success: true,
                             error: null,
                             message: "File created successfully",
-                            payload: { id, filename: name, length: st.size },
+                            file: { id, filename: name, length: st.size },
                             status: 201
                         }));
                     } catch (error) {
-                        this.logger.error(error as Error, { id, filename: name });
+                        this.logger.error(error as Error, { id, filename: name, message: "Failed to save file metadata" });
                         resolve(this.struct.res({
                             success: false,
-                            error: "Failed to save file metadata",
+                            error: (error as Error).message,
                             message: "Failed to save file metadata",
-                            payload: null,
                             status: 500
                         }));
                     }
                 });
 
                 stream.on("error", (error) => {
-                    this.logger.error(error as Error, { id, filename: name, filepath });
+                    this.logger.error(error as Error, { id, filename: name, filepath, message: "Stream write error" });
                     resolve(this.struct.res({
                         success: false,
-                        error: "File write error",
-                        message: "File write error",
-                        payload: null,
+                        error: error.message,
+                        message: `Failed to write file: ${error.message}`,
                         status: 500
                     }));
                 });
+
+                // Pipe request to stream AFTER all event handlers are set up
+                req.pipe(stream);
             } catch (error) {
-                this.logger.error(error as Error, {});
+                this.logger.error(error as Error, { message: "Unexpected error in create" });
                 reject(error);
             }
         });
     };
 
-    read = async (id: string, res: Response, action: FileAction): Promise<response> => {
+    readFile = async (id: string, res: Response, action: FileAction): Promise<response> => {
         this.logger.info("Hitted FileService:read method", { id, action });
 
         return new Promise(async (resolve, reject) => {
             try {
-                if (id === "<dummy_file>") {
-                    reject(this.struct.res({
-                        success: false,
-                        error: "File not found",
-                        message: "File not f2ound",
-                        payload: null,
-                        status: 404,
-                    }));
-                };
-
                 const file = this.repo.get(id);
                 if (!file || !file?.filename) {
                     reject(this.struct.res({
                         success: false,
                         error: "File not found",
-                        message: "File not f2ound",
-                        payload: null,
+                        message: "File not found",
                         status: 404,
                     }));
                 }
@@ -134,7 +121,7 @@ export class FileService {
                                 error: null,
                                 message: "File sent",
                                 status: 200,
-                                payload: { filename: file?.filename, id, length: stats.size, },
+                                file: { filename: file?.filename, id, length: stats.size, },
                             }));
                         }
                     });
@@ -161,14 +148,13 @@ export class FileService {
     readRoot = (): response => {
         this.logger.info("Hitted FileService:readRoot method", {});
         try {
-            const all = this.repo.getAll(null).filter(f => f.id !== "<dummy_file>");
-            this.logger.info(`Root files loaded`, { totalFiles: all.length });
+            const { files, directories } = this.repo.getAll(null);
+            this.logger.info(`Root files loaded`, { totalFiles: files.length, totalDirectories: directories.length });
 
-            if (!all || all.length === 0) {
+            if (!files || !directories) {
                 this.logger.info(`No files found in root`, {});
                 return this.struct.res({
                     success: false,
-                    payload: null,
                     message: "Failed to load data",
                     error: "Unable to fetch data",
                     status: 500
@@ -177,7 +163,7 @@ export class FileService {
 
             return this.struct.res({
                 success: true,
-                payload: all,
+                payload: { files, directories },
                 message: "Data loaded successfully",
                 error: null,
                 status: 200
@@ -191,13 +177,21 @@ export class FileService {
     rename = async (id: string, filename: string): Promise<response> => {
         try {
             const curr = await this.repo.rename({ id, filename });
+            if (!curr) {
+                return this.struct.res({
+                    success: false,
+                    message: "Rename failed!",
+                    error: "Rename failed",
+                    status: 400,
+                })
+            }
 
             return this.struct.res({
-                success: curr ? true : false,
-                payload: curr ? { filename: curr?.filename, id, length: curr?.size ?? 0 } : null,
-                message: curr ? "File has been renamed" : "Rename procedure failed",
-                error: curr ? null : "Rename procedure failed",
-                status: curr ? 200 : 400
+                success: true,
+                file: { filename: curr?.filename, id, length: curr?.size ?? 0 },
+                message: "File has been renamed",
+                error: null,
+                status: 200,
             });
         } catch (error) {
             this.logger.error(error as Error, { id, filename });
@@ -218,8 +212,9 @@ export class FileService {
             return this.struct.res({
                 success: true,
                 message: "File Deleted",
+                error: null,
                 status: 200,
-                payload: {
+                file: {
                     filename: del?.filename,
                     id: del?.id,
                     length: del?.size ?? 0,

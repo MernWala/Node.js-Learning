@@ -15,8 +15,12 @@ export interface response {
     success: boolean,
     error?: string | null,
     message: string,
-    payload?: filePayload | file[] | null,
-    status?: number
+    status?: number,
+    file?: fileView,
+    payload?: {
+        files: file[],
+        directories: directory[],
+    },
 }
 
 export interface file {
@@ -44,9 +48,15 @@ export interface directoryView {
     }
 }
 
+export interface fileView {
+    filename: string | null,
+    id: string,
+    length: number,
+}
+
 export class Structure {
-    res = ({ success, error, message, payload, status }: response): response => {
-        return { success, error: error ?? null, message, status, payload }
+    res = ({ success, error, message, payload, status, file }: response): response => {
+        return { success, error: error ?? null, message, status, payload, file }
     }
 
     file = ({ id, filename, parentDir, size, fileType }: file) => {

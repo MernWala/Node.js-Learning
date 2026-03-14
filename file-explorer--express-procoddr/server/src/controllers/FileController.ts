@@ -37,7 +37,6 @@ export class FileController {
                 success: false,
                 error: "Server Error",
                 message: "Server Error! Try again later.",
-                payload: null,
             }));
         }
     }
@@ -55,7 +54,7 @@ export class FileController {
             }
 
             this.logger.info(`Reading file with action`, { id, action });
-            const response = await this.service.read(id, res, action);
+            const response = await this.service.readFile(id, res, action);
             return res.status(response?.status ?? 200).json(response);
         } catch (error) {
             this.logger.error(error as Error, {});
@@ -68,7 +67,6 @@ export class FileController {
                 success: false,
                 error: error.message as string,
                 message: "Server Error! Try again later.",
-                payload: null,
                 status: 500
             }));
         }
@@ -105,7 +103,6 @@ export class FileController {
                 success: false,
                 error: "Server Error",
                 message: "Server Error! Try again later.",
-                payload: null,
                 status: 500
             }));
         }
@@ -134,7 +131,6 @@ export class FileController {
                 success: false,
                 error: "Server Error",
                 message: "Server Error! Try again later.",
-                payload: null,
                 status: 500
             }));
         }

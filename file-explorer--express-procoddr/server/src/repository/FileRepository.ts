@@ -1,6 +1,5 @@
 import { directory, file, Structure } from "../util/Structure";
 import { writeFile, unlink } from "node:fs/promises"
-import { writeFileSync } from "node:fs"
 import Files from "../../db/files.json" with { type: 'json' };
 import Directory from "../../db/directory.json" with { type: 'json' };
 import path from "node:path";
@@ -47,23 +46,29 @@ export class FileRepository {
         return exists;
     };
 
-    getAll(folder: string | null): file[] {
-        if (!folder) {
-            const files = this.fileDB.filter(f => (f.parentDir?.length === 0 || f.parentDir === null) && (f.filename && f.filename.length > 0));
-            this.logger.info(`Retrieved all root files`, { count: files.length });
-            return files;
-        }
-        // Return files for specific folder
-        const dir = this.dirDB.find((d: any) => d.id === folder);
+    getAll(folder: string | null): { directories: directory[], files: file[] } {
+        const rootDir = this.dirDB.find(d => folder !== null ? (d.id === folder) : (d.parentDir === null && d.name === "root"));
+
         const files: file[] = [];
-        if (dir?.payload?.files) {
-            for (const fid of dir.payload.files) {
+        const directories: directory[] = [];
+
+        if (rootDir?.payload?.files) {
+            for (const fid of rootDir.payload.files) {
                 const file = this.fileDB.find(f => f.id === fid);
                 if (file) files.push(file);
             }
-        }
-        this.logger.info(`Retrieved files from folder`, { folderId: folder, count: files.length });
-        return files;
+        };
+
+        if (rootDir?.payload?.directory) {
+            for (const did of rootDir.payload.directory) {
+                const dir = this.dirDB.find(d => d.id === did);
+                if (dir) directories.push(dir);
+            }
+        };
+
+        this.logger.info(`Retrieved all root files`, { count: files.length });
+
+        return { directories, files };
     }
 
     async rename({ id, filename }: file): Promise<file | null> {

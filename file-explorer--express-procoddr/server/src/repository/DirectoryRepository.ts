@@ -2,9 +2,7 @@ import { directory, file, Structure } from "../util/Structure";
 import Directory from "../../db/directory.json" with { type: 'json' };
 import Files from "../../db/files.json" with { type: 'json' };
 import { writeFile } from "node:fs/promises";
-import { writeFileSync } from "node:fs";
 import { AppLogger } from "../util/AppLogger";
-import { randomUUID } from "node:crypto";
 
 export class DirRepository {
     private dirDB: directory[] = Directory;
