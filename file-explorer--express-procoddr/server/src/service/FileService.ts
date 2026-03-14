@@ -22,6 +22,15 @@ export class FileService {
     }
 
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
+        if(!req.body) {
+            return this.struct.res({
+                success: false,
+                message: "File not found",
+                error: "File not sent with request",
+                status: 404,
+            })
+        }
+        
         this.logger.info("Hitted FileService:create method", { filename, folder });
         // Validate folder exists if folder ID is provided
         if (folder && !this.repo.directoryExists(folder)) {
