@@ -16,25 +16,6 @@ export class FileRepository {
     private dirDbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("FileRepository");
 
-    constructor() {
-        if (Files.length === 0) {
-            this.insertSync({
-                "id": "<dummy_file>",
-                "filename": "Dummy File",
-                "parentDir": null,
-                "size": 0,
-            })
-        }
-    }
-
-    private insertSync({ id, filename, parentDir, size }: file): void {
-        const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
-        const temp: file = this.struct.file({ id, filename, parentDir, size, fileType: _type });
-        this.fileDB.push(temp);
-        // Persist to file synchronously
-        writeFileSync(this.dbPath, JSON.stringify(this.fileDB));
-    }
-
     async insert({ id, filename, parentDir, size, }: file, folder: string | null): Promise<file> {
         this.logger.info(`Inserting file: ${filename}`, { id, filename, folder, size });
         const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
@@ -116,7 +97,7 @@ export class FileRepository {
             this.logger.info(`Delete failed: File not found`, { id });
             return null;
         }
-        
+
         // Delete physical file from uploads directory
         try {
             const filepath = `./uploads/${temp.id}${path.extname(temp.filename ?? "")}`;
@@ -125,7 +106,7 @@ export class FileRepository {
         } catch (error) {
             this.logger.error(error as Error, { id, message: "Failed to delete physical file" });
         }
-        
+
         const tempArr = this.fileDB.filter(f => f?.id !== id);
         await writeFile(this.dbPath, JSON.stringify(tempArr));
         this.fileDB = tempArr;
@@ -137,14 +118,14 @@ export class FileRepository {
             // Handle root directory case
             await this.removeFileFromDirectory("root", temp.id, true);
         }
-        
+
         this.logger.info(`File deleted successfully`, { id, filename: temp.filename });
         return temp;
     };
 
     private async pushFileToDirectory(folder: string | null, fileId: string): Promise<void> {
         if (!folder) {
-            const dir = this.dirDB.find(dir => dir.parentDir === "root");
+            const dir = this.dirDB.find(dir => dir.name === "root");
             if (dir) {
                 this.dirDB.map(d => {
                     if (d.parentDir === null) {
@@ -162,11 +143,10 @@ export class FileRepository {
                     return d;
                 });
             } else {
-                const tId = randomUUID();
                 this.dirDB.push(this.struct.directory({
-                    id: tId,
-                    name: "",
-                    parentDir: "root",
+                    id: randomUUID(),
+                    name: "root",
+                    parentDir: null,
                     payload: {
                         directory: [],
                         files: [fileId]

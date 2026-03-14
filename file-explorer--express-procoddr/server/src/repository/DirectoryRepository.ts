@@ -4,6 +4,7 @@ import Files from "../../db/files.json" with { type: 'json' };
 import { writeFile } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
 import { AppLogger } from "../util/AppLogger";
+import { randomUUID } from "node:crypto";
 
 export class DirRepository {
     private dirDB: directory[] = Directory;
@@ -11,27 +12,6 @@ export class DirRepository {
     private struct: Structure = new Structure();
     private dbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("DirRepository");
-
-    constructor() {
-        if (!this.dirDB || this.dirDB.length === 0) {
-            this.createSync({
-                id: "<dummy_folder>",
-                name: "Dummy Folder",
-                parentDir: "*",
-                payload: {
-                    files: [],
-                    directory: []
-                }
-            });
-        }
-    }
-
-    private createSync(inp: directory): void {
-        const temp: directory = this.struct.directory(inp);
-        this.dirDB.push(temp);
-        // Persist to file synchronously
-        writeFileSync(this.dbPath, JSON.stringify(this.dirDB));
-    }
 
     async create(inp: directory): Promise<directory> {
         this.logger.info(`Creating directory: ${inp.name}`, { id: inp.id, name: inp.name, parentDir: inp.parentDir });
