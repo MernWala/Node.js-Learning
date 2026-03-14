@@ -15,7 +15,7 @@ export class DirRepository {
         this.logger.info(`Creating directory: ${inp.name}`, { id: inp.id, name: inp.name, parentDir: inp.parentDir });
         const temp: directory = this.struct.directory(inp);
         this.dirDB.push(temp);
-        await writeFile(this.dbPath, JSON.stringify(this.dirDB));
+        await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
         this.logger.info(`Directory created successfully`, { id: temp.id, name: temp.name });
         return this.struct.directory(temp);
     }
@@ -64,7 +64,7 @@ export class DirRepository {
             return null;
         }
 
-        await writeFile(this.dbPath, JSON.stringify(temp));
+        await writeFile(this.dbPath, JSON.stringify(temp, null, 4));
         this.dirDB = temp;
         this.logger.info(`Directory renamed successfully`, { id, newName: name });
         return res;
@@ -78,7 +78,7 @@ export class DirRepository {
             return null;
         }
         const tempArr = this.dirDB.filter(d => d?.id !== id);
-        await writeFile(this.dbPath, JSON.stringify(tempArr));
+        await writeFile(this.dbPath, JSON.stringify(tempArr, null, 4));
         this.dirDB = tempArr;
         this.logger.info(`Directory deleted successfully`, { id, name: temp.name });
         return temp;
@@ -124,7 +124,7 @@ export class DirRepository {
             return dir;
         });
 
-        await writeFile(this.dbPath, JSON.stringify(temp));
+        await writeFile(this.dbPath, JSON.stringify(temp, null, 4));
         this.dirDB = temp;
         return res;
     }
@@ -147,7 +147,7 @@ export class DirRepository {
             return dir;
         });
 
-        await writeFile(this.dbPath, JSON.stringify(temp));
+        await writeFile(this.dbPath, JSON.stringify(temp, null, 4));
         this.dirDB = temp;
         return res;
     }
@@ -170,7 +170,7 @@ export class DirRepository {
             return dir;
         });
 
-        await writeFile(this.dbPath, JSON.stringify(temp));
+        await writeFile(this.dbPath, JSON.stringify(temp, null, 4));
         this.dirDB = temp;
         return res;
     }
@@ -193,7 +193,7 @@ export class DirRepository {
             return dir;
         });
 
-        await writeFile(this.dbPath, JSON.stringify(temp));
+        await writeFile(this.dbPath, JSON.stringify(temp, null, 4));
         this.dirDB = temp;
         return res;
     }

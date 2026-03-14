@@ -6,6 +6,7 @@ import path from "node:path";
 import mime from 'mime';
 import { randomUUID } from "node:crypto";
 import { AppLogger } from "../util/AppLogger";
+import { waitForDebugger } from "node:inspector";
 
 export class FileRepository {
     private fileDB: file[] = Files;
@@ -15,13 +16,13 @@ export class FileRepository {
     private dirDbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("FileRepository");
 
-    async insert({ id, filename, parentDir, size, }: file, folder: string | null): Promise<file> {
-        this.logger.info(`Inserting file: ${filename}`, { id, filename, folder, size });
+    async insert({ id, filename, parentDir, size, }: file): Promise<file> {
+        this.logger.info(`Inserting file: ${filename}`, { id, filename, parentDir, size });
         const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
         const temp: file = this.struct.file({ id, filename, parentDir, size, fileType: _type });
         this.fileDB.push(temp);
-        await writeFile(this.dbPath, JSON.stringify(this.fileDB));
-        await this.pushFileToDirectory(folder ?? null, temp.id);
+        await writeFile(this.dbPath, JSON.stringify(this.fileDB, null, 4));
+        await this.pushFileToDirectory(parentDir ?? null, temp.id);
         this.logger.info(`File inserted successfully: ${filename}`, { id, filename });
         return this.struct.file(temp);
     };
@@ -89,7 +90,7 @@ export class FileRepository {
 
         const result = { ...temp, filename: newName ?? curr?.filename }
         tempArr.push(result);
-        await writeFile(this.dbPath, JSON.stringify(tempArr));
+        await writeFile(this.dbPath, JSON.stringify(tempArr, null, 4));
         this.fileDB = tempArr;
         this.logger.info(`File renamed successfully`, { id, oldName: curr.filename, newName: result.filename });
         return result;
@@ -113,7 +114,7 @@ export class FileRepository {
         }
 
         const tempArr = this.fileDB.filter(f => f?.id !== id);
-        await writeFile(this.dbPath, JSON.stringify(tempArr));
+        await writeFile(this.dbPath, JSON.stringify(tempArr, null, 4));
         this.fileDB = tempArr;
 
         // Remove file from directory payload
@@ -130,9 +131,9 @@ export class FileRepository {
 
     private async pushFileToDirectory(folder: string | null, fileId: string): Promise<void> {
         if (!folder) {
-            const dir = this.dirDB.find(dir => dir.name === "root");
+            const dir = this.dirDB.find(dir => dir.parentDir === null && dir.name === "root");
             if (dir) {
-                this.dirDB.map(d => {
+                this.dirDB = this.dirDB.map(d => {
                     if (d.parentDir === null) {
                         return this.struct.directory({
                             id: d.id,
@@ -159,7 +160,7 @@ export class FileRepository {
                 }));
             }
 
-            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB));
+            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
             return;
         }
 
@@ -167,7 +168,7 @@ export class FileRepository {
         if (dirIndex !== -1) {
             if (!this.dirDB[dirIndex].payload.files.includes(fileId)) {
                 this.dirDB[dirIndex].payload.files.push(fileId);
-                await writeFile(this.dirDbPath, JSON.stringify(this.dirDB));
+                await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
             }
         }
 
@@ -178,7 +179,7 @@ export class FileRepository {
         const dirIndex = this.dirDB.findIndex(d => root ? (d.parentDir === "root") : (d.id === folder));
         if (dirIndex !== -1) {
             this.dirDB[dirIndex].payload.files = this.dirDB[dirIndex].payload.files.filter((f: string) => f !== fileId);
-            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB));
+            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
         }
     }
 }

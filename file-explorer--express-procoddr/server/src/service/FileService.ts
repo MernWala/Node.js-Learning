@@ -22,15 +22,6 @@ export class FileService {
     }
 
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
-        if(!req.body) {
-            return this.struct.res({
-                success: false,
-                message: "File not found",
-                error: "File not sent with request",
-                status: 404,
-            })
-        }
-        
         this.logger.info("Hitted FileService:create method", { filename, folder });
         // Validate folder exists if folder ID is provided
         if (folder && !this.repo.directoryExists(folder)) {
@@ -39,6 +30,28 @@ export class FileService {
                 error: "Folder not found",
                 message: `Folder with ID '${folder}' does not exist in database`,
                 status: 404
+            });
+        }
+
+        // Validate request body binary - check if file is sent with request
+        const contentLength = req.headers['content-length'];
+        if (!contentLength || parseInt(contentLength) === 0) {
+            this.logger.info("Validation failed: No file data in request", { contentLength });
+            return this.struct.res({
+                success: false,
+                error: "No file data",
+                message: "Request body is empty. No file data provided.",
+                status: 400
+            });
+        }
+
+        if (!req.readable) {
+            this.logger.info("Validation failed: Request stream is not readable", {});
+            return this.struct.res({
+                success: false,
+                error: "Invalid request stream",
+                message: "Request stream is not readable.",
+                status: 400
             });
         }
 
@@ -57,10 +70,10 @@ export class FileService {
                         await this.repo.insert(this.struct.file({
                             id,
                             filename: name,
-                            parentDir: null,
+                            parentDir: folder,
                             size: st.size,
                             fileType: mime.getType(path.extname(name)),
-                        }), folder);
+                        }));
 
                         resolve(this.struct.res({
                             success: true,
