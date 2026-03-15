@@ -9,14 +9,13 @@ import { Request, Response } from "express"
 import mime from "mime";
 
 type FileAction = 'download' | 'view'
-
 export class FileService {
     private logger: AppLogger;
     private struct: Structure;
     private repo: FileRepository;
 
     constructor() {
-        this.logger = new AppLogger("File Controller");
+        this.logger = new AppLogger("FileService");
         this.struct = new Structure();
         this.repo = new FileRepository();
     }
@@ -222,7 +221,7 @@ export class FileService {
     };
 
     delete = async (id: string, folder: string | null): Promise<response | null> => {
-        this.logger.info(`Delete request initiated`, { id, folder: folder ?? "(root)" });
+        this.logger.info(`Delete request initiated`, { id, folder: folder ?? "root" });
         try {
             const del = await this.repo.delete(id, folder);
             if (!del) {

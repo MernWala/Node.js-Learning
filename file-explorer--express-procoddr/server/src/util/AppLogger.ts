@@ -27,10 +27,10 @@ export class AppLogger {
     }
 
     info(message: string, objects?: Record<string, any>) {
-        logger.info(message + "| Object passed: " + JSON.stringify(objects), { controller: this.controllerFunction });
+        logger.info(message + " | Object passed: " + JSON.stringify(objects), { controller: this.controllerFunction });
     }
 
     error(error: Error, objects?: Record<string, any>) {
-        logger.error(error?.message + "| Object passed: " + JSON.stringify(objects), { controller: this.controllerFunction });
+        logger.error(error?.message + " | Object passed: " + JSON.stringify(objects), { controller: this.controllerFunction });
     }
 }

@@ -6,7 +6,6 @@ import path from "node:path";
 import mime from 'mime';
 import { randomUUID } from "node:crypto";
 import { AppLogger } from "../util/AppLogger";
-import { waitForDebugger } from "node:inspector";
 
 export class FileRepository {
     private fileDB: file[] = Files;
@@ -119,9 +118,11 @@ export class FileRepository {
 
         // Remove file from directory payload
         if (folder) {
+            this.logger.info(`Removing fileId from directory of valid folder`, { id, folder });
             await this.removeFileFromDirectory(folder, temp.id);
         } else {
             // Handle root directory case
+            this.logger.info(`Removing fileId from root`, { id, folder: "root" });
             await this.removeFileFromDirectory("root", temp.id, true);
         }
 
@@ -176,10 +177,13 @@ export class FileRepository {
     }
 
     private async removeFileFromDirectory(folder: string, fileId: string, root: boolean = false): Promise<void> {
-        const dirIndex = this.dirDB.findIndex(d => root ? (d.parentDir === "root") : (d.id === folder));
+        const dirIndex = this.dirDB.findIndex(d => root ? (d.parentDir === null && d.name === "root") : (d.id === folder));
         if (dirIndex !== -1) {
+            this.logger.info(`Found index of file`, { dirIndex, folder, fileId, root });
             this.dirDB[dirIndex].payload.files = this.dirDB[dirIndex].payload.files.filter((f: string) => f !== fileId);
             await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
         }
+
+        this.logger.info(`Didn't found fileId from folder`, { dirIndex, folder, fileId, root });
     }
 }
