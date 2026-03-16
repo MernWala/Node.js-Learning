@@ -23,7 +23,7 @@ export class FileService {
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
         this.logger.info("Hitted FileService:create method", { filename, folder });
         // Validate folder exists if folder ID is provided
-        if (folder && !this.repo.directoryExists(folder)) {
+        if (folder && !await this.repo.directoryExists(folder)) {
             return this.struct.res({
                 success: false,
                 error: "Folder not found",
@@ -166,10 +166,10 @@ export class FileService {
         });
     };
 
-    readRoot = (): response => {
+    readRoot = async (): Promise<response> => {
         this.logger.info("Hitted FileService:readRoot method", {});
         try {
-            const { files, directories } = this.repo.getAll(null);
+            const { files, directories } = await this.repo.getAll(null);
             this.logger.info(`Root files loaded`, { totalFiles: files.length, totalDirectories: directories.length });
 
             if (!files || !directories) {

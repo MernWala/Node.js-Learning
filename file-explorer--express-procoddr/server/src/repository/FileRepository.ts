@@ -1,22 +1,43 @@
-import { directory, file, Structure } from "../util/Structure";
-import { writeFile, unlink } from "node:fs/promises"
-import Files from "../../db/files.json" with { type: 'json' };
-import Directory from "../../db/directory.json" with { type: 'json' };
+import { directory, directoryView, file, Structure } from "../util/Structure";
+import { writeFile, unlink, readFile } from "node:fs/promises"
 import path from "node:path";
 import mime from 'mime';
 import { randomUUID } from "node:crypto";
 import { AppLogger } from "../util/AppLogger";
 
 export class FileRepository {
-    private fileDB: file[] = Files;
-    private dirDB: directory[] = Directory;
+    private fileDB: file[] = [];
+    private dirDB: directory[] = [];
     private struct: Structure = new Structure();
     private dbPath: string = "./db/files.json";
     private dirDbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("FileRepository");
 
+    private async loadFileDB(): Promise<file[]> {
+        try {
+            const data = await readFile(this.dbPath, 'utf-8');
+            this.fileDB = JSON.parse(data);
+        } catch (error) {
+            this.logger.error(error as Error);
+            return [];
+        }
+        return this.fileDB;
+    }
+
+    private async loadDirDB(): Promise<directory[]> {
+        try {
+            const data = await readFile(this.dirDbPath, 'utf-8');
+            this.dirDB = JSON.parse(data);
+        } catch (error) {
+            this.logger.error(error as Error);
+            return [];
+        }
+        return this.dirDB;
+    }
+
     async insert({ id, filename, parentDir, size, }: file): Promise<file> {
         this.logger.info(`Inserting file: ${filename}`, { id, filename, parentDir, size });
+        this.fileDB = await this.loadFileDB();
         const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
         const temp: file = this.struct.file({ id, filename, parentDir, size, fileType: _type });
         this.fileDB.push(temp);
@@ -36,7 +57,8 @@ export class FileRepository {
         return null;
     };
 
-    directoryExists(id: string): boolean {
+    async directoryExists(id: string): Promise<boolean> {
+        this.dirDB = await this.loadDirDB();
         const exists = this.dirDB.some(d => d.id === id);
         if (exists) {
             this.logger.info(`Directory validation: EXISTS`, { directoryId: id });
@@ -46,11 +68,14 @@ export class FileRepository {
         return exists;
     };
 
-    getAll(folder: string | null): { directories: directory[], files: file[] } {
+    async getAll(folder: string | null): Promise<{ directories: directoryView[], files: file[] }> {
+        this.dirDB = await this.loadDirDB();
+        this.fileDB = await this.loadFileDB();
+
         const rootDir = this.dirDB.find(d => folder !== null ? (d.id === folder) : (d.parentDir === null && d.name === "root"));
 
         const files: file[] = [];
-        const directories: directory[] = [];
+        const directories: directoryView[] = [];
 
         if (rootDir?.payload?.files) {
             for (const fid of rootDir.payload.files) {
@@ -62,17 +87,18 @@ export class FileRepository {
         if (rootDir?.payload?.directory) {
             for (const did of rootDir.payload.directory) {
                 const dir = this.dirDB.find(d => d.id === did);
-                if (dir) directories.push(dir);
+                if (dir) directories.push({ id: dir.id, name: dir.name, parentDir: dir.parentDir });
             }
         };
 
-        this.logger.info(`Retrieved all root files`, { count: files.length });
+        this.logger.info(`Retrieved all root files`, { folder, filesCount: files.length, directoriesCount: directories.length });
 
         return { directories, files };
     }
 
     async rename({ id, filename }: file): Promise<file | null> {
         this.logger.info(`Renaming file`, { id, newFilename: filename });
+        this.fileDB = await this.loadFileDB();
         const curr = this.fileDB.find(f => f.id === id);
         let newName
 
@@ -97,6 +123,7 @@ export class FileRepository {
 
     async delete(id: string, folder: string | null): Promise<file | null> {
         this.logger.info(`Deleting file`, { id, folder });
+        this.fileDB = await this.loadFileDB();
         const temp = this.fileDB.find(f => f?.id === id);
         if (!temp) {
             this.logger.info(`Delete failed: File not found`, { id });
@@ -131,6 +158,8 @@ export class FileRepository {
     };
 
     private async pushFileToDirectory(folder: string | null, fileId: string): Promise<void> {
+        this.dirDB = await this.loadDirDB();
+
         if (!folder) {
             const dir = this.dirDB.find(dir => dir.parentDir === null && dir.name === "root");
             if (dir) {
@@ -177,6 +206,8 @@ export class FileRepository {
     }
 
     private async removeFileFromDirectory(folder: string, fileId: string, root: boolean = false): Promise<void> {
+        this.dirDB = await this.loadDirDB();
+
         const dirIndex = this.dirDB.findIndex(d => root ? (d.parentDir === null && d.name === "root") : (d.id === folder));
         if (dirIndex !== -1) {
             this.logger.info(`Found index of file`, { dirIndex, folder, fileId, root });

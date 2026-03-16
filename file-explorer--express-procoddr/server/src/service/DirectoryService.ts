@@ -1,4 +1,4 @@
-import { response } from "../util/Structure";
+import { directoryView } from "../util/Structure";
 import { AppLogger } from "../util/AppLogger";
 import { DirRepository } from "../repository/DirectoryRepository";
 
@@ -11,39 +11,24 @@ export class DirectoryService {
         this.repo = new DirRepository();
     }
 
-    // async create(): Promise<response> {
-    //     try {
+    async create(name: string, parent: string): Promise<directoryView | null> {
+        try {
+            this.logger.info(`Folder creation started`, { name, parent });
+            const res = await this.repo.create(name, parent);
+            return res;
+        } catch (error) {
+            this.logger.error(error as Error);
+            return null;
+        }
+    }
 
-    //     } catch (error) {
-    //         this.logger.error(error as Error, {});
-    //         throw error;
-    //     }
-    // }
-
-    // async read(): Promise<response> {
-    //     try {
-
-    //     } catch (error) {
-    //         this.logger.error(error as Error, {});
-    //         throw error;
-    //     }
-    // }
-
-    // async update(): Promise<response> {
-    //     try {
-
-    //     } catch (error) {
-    //         this.logger.error(error as Error, {});
-    //         throw error;
-    //     }
-    // }
-
-    // async delete(): Promise<response> {
-    //     try {
-
-    //     } catch (error) {
-    //         this.logger.error(error as Error, {});
-    //         throw error;
-    //     }
-    // }
+    async validateDirectory(id: string): Promise<boolean> {
+        try {
+            this.logger.info('Validating directory id', { id });
+            return await this.repo.isValidDirectory(id);
+        } catch (error) {
+            this.logger.error(error as Error);
+            return false;
+        }
+    }
 }

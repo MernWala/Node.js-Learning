@@ -7,7 +7,7 @@ export const DirectoryRoutes = () => {
     const router = express.Router();
     const controller = new DirectoryController();
 
-    // router.post("/", controller.create.bind(controller));
+    router.post("/", controller.create.bind(controller));
     // router.get("/:id", controller.read.bind(controller));
     // router.patch("/", controller.rename.bind(controller));
     // router.delete("/:id", controller.delete.bind(controller));
