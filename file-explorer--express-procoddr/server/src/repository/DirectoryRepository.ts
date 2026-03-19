@@ -64,11 +64,34 @@ export class DirRepository {
             for (const dir of this.dirDB) {
                 if (id === dir.id) return true;
             }
-            
+
             return false;
         } catch (error) {
             this.logger.error(error as Error);
             throw error;
+        }
+    }
+
+    async rename(id: string, name: string): Promise<directoryView | null> {
+        try {
+            this.dirDB = await this.loadDirDB();
+            let change: directoryView | undefined;
+
+            this.dirDB = this.dirDB.map((dir) => {
+                if (dir.id == id) {
+                    change = { id, name, parentDir: dir?.parentDir };
+                    return { ...dir, name }
+                }
+                return dir;
+            });
+
+            await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
+            if (change)
+                return change;
+            return null;
+        } catch (error) {
+            this.logger.error(error as Error);
+            return null
         }
     }
 };

@@ -13,7 +13,7 @@ export class DirectoryService {
 
     async create(name: string, parent: string): Promise<directoryView | null> {
         try {
-            this.logger.info(`Folder creation started`, { name, parent });
+            this.logger.info(`Directory creation started`, { name, parent });
             const res = await this.repo.create(name, parent);
             return res;
         } catch (error) {
@@ -29,6 +29,17 @@ export class DirectoryService {
         } catch (error) {
             this.logger.error(error as Error);
             return false;
+        }
+    }
+
+    async rename(id: string, name: string): Promise<directoryView | null> {
+        try {
+            this.logger.info(`Directory rename initiated`, { id, name });
+            const res = await this.repo.rename(id, name);
+            return res;
+        } catch (error) {
+            this.logger.error(error as Error);
+            return null;
         }
     }
 }
