@@ -9,6 +9,7 @@ export const DirectoryRoutes = () => {
 
     router.post("/", controller.create.bind(controller));
     router.patch("/", controller.rename.bind(controller));
+    router.patch("/move", controller.move.bind(controller));
     // router.get("/:id", controller.read.bind(controller));
     // router.delete("/:id", controller.delete.bind(controller));
 

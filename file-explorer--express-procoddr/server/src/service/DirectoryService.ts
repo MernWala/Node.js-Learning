@@ -1,14 +1,16 @@
-import { directoryView } from "../util/Structure";
+import { directoryView, response, Structure } from "../util/Structure";
 import { AppLogger } from "../util/AppLogger";
 import { DirRepository } from "../repository/DirectoryRepository";
 
 export class DirectoryService {
     private logger: AppLogger;
     private repo: DirRepository;
+    private struc: Structure;
 
     constructor() {
         this.logger = new AppLogger("DirectoryService");
         this.repo = new DirRepository();
+        this.struc = new Structure();
     }
 
     async create(name: string, parent: string): Promise<directoryView | null> {
@@ -40,6 +42,24 @@ export class DirectoryService {
         } catch (error) {
             this.logger.error(error as Error);
             return null;
+        }
+    }
+
+    async move(id: string, parentDir: string, newParent: string): Promise<response> {
+        try {
+
+            this.logger.info(`Directory move initiated`, { id, parentDir, newParent });
+            const res = await this.repo.move(id, parentDir, newParent);
+            return res;
+
+        } catch (error) {
+            this.logger.error(error as Error);
+            return this.struc.res({
+                message: "Server Error!",
+                success: false,
+                directory: undefined,
+                status: 500
+            })
         }
     }
 }

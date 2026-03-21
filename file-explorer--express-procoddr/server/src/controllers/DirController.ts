@@ -121,4 +121,42 @@ export class DirectoryController {
             }))
         }
     }
+
+    async move(req: Request, res: Response): Promise<Response> {
+        try {
+
+            const { id, parentDir, newParent } = req.body as { id: string, parentDir: string, newParent: string };
+            this.logger.info(`Initiating folder move`, { id, parentDir, newParent });
+
+            const isValidDirectories = await Promise.all([
+                this.service.validateDirectory(id),
+                this.service.validateDirectory(parentDir),
+                this.service.validateDirectory(newParent),
+            ]);
+
+            // Validating all directory ids
+            const key = ['Main', 'Parent', 'New'];
+            for (let i = 0; i < isValidDirectories.length; i++) {
+                if (!isValidDirectories[i]) {
+                    return res.status(404).json(this.struct.res({
+                        status: 404,
+                        success: false,
+                        message: `${key[i]} Directory not found`,
+                        error: `${key[i]} Directory not found`,
+                    }));
+                }
+            }
+
+            const response = await this.service.move(id, parentDir, newParent);
+            return res.status(200).json(this.struct.res(response))
+
+        } catch (error) {
+            this.logger.error(error as Error);
+            return res.status(500).json(this.struct.res({
+                success: false,
+                error: "Server Error",
+                message: "Server Error! Try again later."
+            }));
+        }
+    }
 }

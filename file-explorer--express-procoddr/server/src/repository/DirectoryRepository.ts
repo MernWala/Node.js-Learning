@@ -1,4 +1,4 @@
-import { directory, directoryView, file, Structure } from "../util/Structure";
+import { directory, directoryView, file, response, Structure } from "../util/Structure";
 import { writeFile, readFile } from "node:fs/promises";
 import { AppLogger } from "../util/AppLogger";
 import { randomUUID } from "node:crypto";
@@ -92,6 +92,58 @@ export class DirRepository {
         } catch (error) {
             this.logger.error(error as Error);
             return null
+        }
+    }
+
+    async move(id: string, parentDir: string, newParent: string): Promise<response> {
+        try {
+
+            this.logger.info(`Directory moving`, { id, parentDir, newParent });
+
+            this.dirDB = await this.loadDirDB();
+            let change: directoryView | undefined;
+
+            this.dirDB = this.dirDB.map((dir: directory) => {
+                if (dir.id === id) {
+                    change = { id, name: dir.name, parentDir: newParent };
+                    return { ...dir, parentDir: newParent };
+                } else if (dir.id === parentDir) {
+                    return {
+                        ...dir,
+                        payload: {
+                            files: dir.payload.files,
+                            directory: dir.payload.directory.filter(dId => dId !== id)
+                        }
+                    }
+                } else if (dir.id === newParent) {
+                    return {
+                        ...dir,
+                        payload: {
+                            files: dir.payload.files,
+                            directory: [...dir.payload.directory, id]
+                        }
+                    }
+                } else {
+                    return dir;
+                }
+            });
+
+            await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
+            return this.struct.res({
+                success: true,
+                message: "Directory moved",
+                status: 200,
+                directory: change
+            });
+
+        } catch (error) {
+            this.logger.error(error as Error);
+            return this.struct.res({
+                message: "Server Error!",
+                success: false,
+                directory: undefined,
+                status: 500
+            })
         }
     }
 };
