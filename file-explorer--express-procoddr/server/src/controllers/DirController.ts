@@ -124,7 +124,6 @@ export class DirectoryController {
 
     async move(req: Request, res: Response): Promise<Response> {
         try {
-
             const { id, parentDir, newParent } = req.body as { id: string, parentDir: string, newParent: string };
             this.logger.info(`Initiating folder move`, { id, parentDir, newParent });
 
@@ -149,7 +148,40 @@ export class DirectoryController {
 
             const response = await this.service.move(id, parentDir, newParent);
             return res.status(200).json(this.struct.res(response))
+        } catch (error) {
+            this.logger.error(error as Error);
+            return res.status(500).json(this.struct.res({
+                success: false,
+                error: "Server Error",
+                message: "Server Error! Try again later."
+            }));
+        }
+    }
 
+    async delete(req: Request, res: Response): Promise<Response> {
+        try {
+            const { id } = req.params as { id: string };
+
+            this.logger.info(`Directory deletion initiated`, { id });
+
+            // validating directory
+            const isValidDirectory = await this.service.validateDirectory(id);
+            if (!isValidDirectory) {
+                return res.status(404).json(this.struct.res({
+                    status: 404,
+                    success: false,
+                    message: `Directory not found`,
+                    error: `Directory not found`,
+                }));
+            }
+
+            const respose = await this.service.delete(id);
+
+            return res.status(200).json(this.struct.res({
+                message: respose.message,
+                success: respose.success,
+                status: respose.status
+            }));
         } catch (error) {
             this.logger.error(error as Error);
             return res.status(500).json(this.struct.res({

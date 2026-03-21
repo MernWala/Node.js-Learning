@@ -2,15 +2,18 @@ import { directory, directoryView, file, response, Structure } from "../util/Str
 import { writeFile, readFile } from "node:fs/promises";
 import { AppLogger } from "../util/AppLogger";
 import { randomUUID } from "node:crypto";
+import { FileRepository } from "./FileRepository";
 
 export class DirRepository {
     private dirDB: directory[] = [];
-    private struct: Structure = new Structure();
+    private struct: Structure;
     private dbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("DirRepository");
+    private fileRepo: FileRepository;
 
     constructor() {
-        // Constructor to load data from file in future if needed
+        this.struct = new Structure();
+        this.fileRepo = new FileRepository();
     }
 
     private async loadDirDB(): Promise<directory[]> {
@@ -24,12 +27,40 @@ export class DirRepository {
         return this.dirDB;
     }
 
+    private async createRoot(): Promise<directory> {
+        try {
+            this.dirDB = await this.loadDirDB();
+            const root: directory = {
+                id: randomUUID(),
+                name: "root",
+                parentDir: null,
+                payload: {
+                    directory: [],
+                    files: [],
+                }
+            }
+
+            this.dirDB.push(root);
+
+            await writeFile(this.dbPath, JSON.stringify(root, null, 4))
+            return root;
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+
     async create(name: string, parent: string): Promise<directoryView | null> {
         try {
             this.dirDB = await this.loadDirDB();
 
+            const root = this.dirDB.find(d => d.name === "root" && d.parentDir === null)?.id ?? "";
             if (parent === "root") {
-                parent = this.dirDB.find(d => d.name === "root" && d.parentDir === null)?.id ?? "";
+                parent = root;
+            }
+
+            if(!root && !parent) {
+                parent = (await this.createRoot()).id;
             }
 
             const newDir: directory = {
@@ -146,4 +177,60 @@ export class DirRepository {
             })
         }
     }
-};
+
+    async delete(id: string): Promise<response> {
+        try {
+            const db = await this.loadDirDB();
+            const newDb = await this.deleteRecursie(id, db);
+            await writeFile(this.dbPath, JSON.stringify(newDb, null, 4));
+
+            return this.struct.res({
+                success: true,
+                message: "Directory and its children deleted",
+                status: 200
+            });
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+
+    async deleteRecursie(id: string, db: directory[]): Promise<directory[]> {
+        try {
+            this.logger.info(`Finding child directory & files`, { id });
+            const obj = db.find(d => d.id === id);
+            this.logger.info(`Attempting to remove Files: ${obj?.payload?.files?.length}; Folder: ${obj?.payload?.directory?.length}`, { id });
+
+            if (obj) {
+                // Removing file one by by one
+                for (const file of (obj?.payload?.files ?? [])) {
+                    await this.fileRepo.delete(file, id);
+                }
+
+                // Removing directories one by one
+                for (const dir of (obj?.payload?.directory ?? [])) {
+                    db = await this.deleteRecursie(dir, db);
+                }
+
+                this.logger.info(`Removed Files: ${obj?.payload?.files?.length}; Folder: ${obj?.payload?.directory?.length}`, { id });
+
+                // Now removing self directory and refrence from parent directory
+                db = db.filter(directory => directory.id !== id);
+                if (obj?.parentDir) {
+                    const parent = db.find(d => d.id === obj.parentDir);
+                    if (parent) {
+                        parent.payload.directory = parent.payload.directory.filter(dId => dId !== id);
+                    }
+                }
+
+                return db;
+            } else {
+                return db;
+            }
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+}
+

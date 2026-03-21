@@ -62,4 +62,21 @@ export class DirectoryService {
             })
         }
     }
+    
+    async delete(id: string): Promise<response> {
+        try {
+
+            this.logger.info(`Directory deletion initiated`, { id });
+            const res = await this.repo.delete(id);
+            return res;
+
+        } catch (error) {
+            this.logger.error(error as Error);
+            return this.struc.res({
+                message: "Server Error!",
+                success: false,
+                status: 500
+            })
+        }
+    }
 }
