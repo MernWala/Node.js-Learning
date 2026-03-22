@@ -1,18 +1,20 @@
 import { directory, directoryView, file, response, Structure } from "../util/Structure";
-import { writeFile, readFile } from "node:fs/promises";
 import { AppLogger } from "../util/AppLogger";
 import { randomUUID } from "node:crypto";
 import { FileRepository } from "./FileRepository";
+import { DirectoryDBRepository } from "../util/DirectoryDBRepository";
 
 export class DirRepository {
     private dirDB: directory[] = [];
     private struct: Structure;
-    private dbPath: string = "./db/directory.json";
-    private logger: AppLogger = new AppLogger("DirRepository");
+    private logger: AppLogger;
     private fileRepo?: FileRepository;
+    private dbRepo: DirectoryDBRepository;
 
     constructor() {
         this.struct = new Structure();
+        this.dbRepo = new DirectoryDBRepository();
+        this.logger = new AppLogger("DirRepository");
     }
 
     private getFileRepo(): FileRepository {
@@ -23,43 +25,9 @@ export class DirRepository {
         return this.fileRepo;
     }
 
-    private async loadDirDB(): Promise<directory[]> {
-        try {
-            const data = await readFile(this.dbPath, 'utf-8');
-            this.dirDB = JSON.parse(data);
-        } catch (error) {
-            this.logger.error(error as Error);
-            return [];
-        }
-        return this.dirDB;
-    }
-
-    async createRoot(): Promise<directory> {
-        try {
-            this.dirDB = await this.loadDirDB();
-            const root: directory = {
-                id: randomUUID(),
-                name: "root",
-                parentDir: null,
-                payload: {
-                    directory: [],
-                    files: [],
-                }
-            }
-
-            this.dirDB.push(root);
-
-            await writeFile(this.dbPath, JSON.stringify(root, null, 4))
-            return root;
-        } catch (error) {
-            this.logger.error(error as Error);
-            throw error;
-        }
-    }
-
     private async get(id: string): Promise<directory | null> {
         try {
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
             return this.dirDB.find(d => d.id === id) ?? null;
         } catch (error) {
             this.logger.error(error as Error);
@@ -69,7 +37,7 @@ export class DirRepository {
 
     async create(name: string, parent: string): Promise<directoryView | null> {
         try {
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
 
             const root = this.dirDB.find(d => d.name === "root" && d.parentDir === null)?.id ?? "";
             if (parent === "root") {
@@ -77,7 +45,7 @@ export class DirRepository {
             }
 
             if (!root && !parent) {
-                parent = (await this.createRoot()).id;
+                parent = (await this.dbRepo.createRoot()).id;
             }
 
             const newDir: directory = {
@@ -97,7 +65,7 @@ export class DirRepository {
             });
 
             this.dirDB.push(newDir);
-            await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
+            await this.dbRepo.sync(this.dirDB);
             return { id: newDir.id, name: newDir.name, parentDir: newDir.parentDir };
 
         } catch (error) {
@@ -110,7 +78,7 @@ export class DirRepository {
         try {
             this.logger.info("Reading directory", { id });
 
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
             const files: file[] = [];
             const directories: directory[] = [];
 
@@ -143,7 +111,7 @@ export class DirRepository {
 
     async isValidDirectory(id: string): Promise<boolean> {
         try {
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
             for (const dir of this.dirDB) {
                 if (id === dir.id) return true;
             }
@@ -157,7 +125,7 @@ export class DirRepository {
 
     async rename(id: string, name: string): Promise<directoryView | null> {
         try {
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
             let change: directoryView | undefined;
 
             this.dirDB = this.dirDB.map((dir) => {
@@ -168,7 +136,7 @@ export class DirRepository {
                 return dir;
             });
 
-            await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
+            await this.dbRepo.sync(this.dirDB);
             if (change)
                 return change;
             return null;
@@ -183,7 +151,7 @@ export class DirRepository {
 
             this.logger.info(`Directory moving`, { id, parentDir, newParent });
 
-            this.dirDB = await this.loadDirDB();
+            this.dirDB = await this.dbRepo.load();
             let change: directoryView | undefined;
 
             this.dirDB = this.dirDB.map((dir: directory) => {
@@ -211,7 +179,7 @@ export class DirRepository {
                 }
             });
 
-            await writeFile(this.dbPath, JSON.stringify(this.dirDB, null, 4));
+            await this.dbRepo.sync(this.dirDB);
             return this.struct.res({
                 success: true,
                 message: "Directory moved",
@@ -232,9 +200,9 @@ export class DirRepository {
 
     async delete(id: string): Promise<response> {
         try {
-            const db = await this.loadDirDB();
+            const db = await this.dbRepo.load();
             const newDb = await this.deleteRecursie(id, db);
-            await writeFile(this.dbPath, JSON.stringify(newDb, null, 4));
+            await this.dbRepo.sync(newDb);
 
             return this.struct.res({
                 success: true,

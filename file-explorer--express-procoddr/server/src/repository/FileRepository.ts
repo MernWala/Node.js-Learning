@@ -1,68 +1,41 @@
 import { directory, file, fileView, Structure } from "../util/Structure";
-import { writeFile, unlink, readFile } from "node:fs/promises"
+import { unlink } from "node:fs/promises"
 import path from "node:path";
 import mime from 'mime';
 import { AppLogger } from "../util/AppLogger";
-import { DirRepository } from "./DirectoryRepository";
+import { FileDBRepository } from "../util/FileDBRepository";
+import { DirectoryDBRepository } from "../util/DirectoryDBRepository";
 
 export class FileRepository {
     private fileDB: file[] = [];
     private dirDB: directory[] = [];
     private struct: Structure;;
-    private dbPath: string = "./db/files.json";
-    private dirDbPath: string = "./db/directory.json";
     private logger: AppLogger;
-    private dirRepo?: DirRepository;
+    private fileDBRepo: FileDBRepository;
+    private dirDBRepo: DirectoryDBRepository;
 
     constructor() {
         this.struct = new Structure();
         this.logger = new AppLogger("File Repository");
-    }
-
-    private getDirRepo(): DirRepository {
-        if (!this.dirRepo) {
-            this.dirRepo = new DirRepository();
-        }
-        return this.dirRepo;
-    }
-
-    private async loadFileDB(): Promise<file[]> {
-        try {
-            const data = await readFile(this.dbPath, 'utf-8');
-            this.fileDB = JSON.parse(data);
-        } catch (error) {
-            this.logger.error(error as Error);
-            return [];
-        }
-        return this.fileDB;
-    }
-
-    private async loadDirDB(): Promise<directory[]> {
-        try {
-            const data = await readFile(this.dirDbPath, 'utf-8');
-            this.dirDB = JSON.parse(data);
-        } catch (error) {
-            this.logger.error(error as Error);
-            return [];
-        }
-        return this.dirDB;
+        this.fileDBRepo = new FileDBRepository();
+        this.dirDBRepo = new DirectoryDBRepository();
     }
 
     async create({ id, filename, parentDir, size, }: file): Promise<file> {
         this.logger.info(`Inserting file: ${filename}`, { id, filename, parentDir, size });
-        this.fileDB = await this.loadFileDB();
-        this.dirDB = await this.loadDirDB();
+        this.fileDB = await this.fileDBRepo.load();
+        this.dirDB = await this.dirDBRepo.load();
 
         let rootDir = this.dirDB.find(d => d.name === "root" && d.parentDir === null);
         if (!rootDir) {
-            rootDir = await this.getDirRepo().createRoot();
+            rootDir = await this.dirDBRepo.createRoot();
         }
 
         const _type: string = mime.getType(path.extname(filename ?? "").replace(".", "")) ?? "<unknown_type>";
         const temp: file = this.struct.file({ id, filename, parentDir, size, fileType: _type });
         this.fileDB.push(temp);
 
-        await writeFile(this.dbPath, JSON.stringify(this.fileDB, null, 4));
+        await this.fileDBRepo.sync(this.fileDB);
         await this.pushFileToDirectory(parentDir ?? rootDir.id, temp.id);
 
         this.logger.info(`File inserted successfully: ${filename}`, { id, filename });
@@ -70,7 +43,7 @@ export class FileRepository {
     };
 
     async read(id: string): Promise<file | null> {
-        this.fileDB = await this.loadFileDB()
+        this.fileDB = await this.fileDBRepo.load()
         const res = this.fileDB.find(f => f.id === id);
 
         if (res?.filename) {
@@ -84,7 +57,7 @@ export class FileRepository {
 
     async update({ id, filename }: file): Promise<file | null> {
         this.logger.info(`Renaming file`, { id, newFilename: filename });
-        this.fileDB = await this.loadFileDB();
+        this.fileDB = await this.fileDBRepo.load();
         const curr = this.fileDB.find(f => f.id === id);
         let newName
 
@@ -101,7 +74,7 @@ export class FileRepository {
 
         const result = { ...temp, filename: newName ?? curr?.filename }
         tempArr.push(result);
-        await writeFile(this.dbPath, JSON.stringify(tempArr, null, 4));
+        await this.fileDBRepo.sync(tempArr);
         this.fileDB = tempArr;
         this.logger.info(`File renamed successfully`, { id, oldName: curr.filename, newName: result.filename });
         return result;
@@ -109,7 +82,7 @@ export class FileRepository {
 
     async delete(id: string, folder: string | null): Promise<file | null> {
         this.logger.info(`Deleting file`, { id, folder });
-        this.fileDB = await this.loadFileDB();
+        this.fileDB = await this.fileDBRepo.load();
         const temp = this.fileDB.find(f => f?.id === id);
         if (!temp) {
             this.logger.info(`Delete failed: File not found`, { id });
@@ -126,7 +99,7 @@ export class FileRepository {
         }
 
         const tempArr = this.fileDB.filter(f => f?.id !== id);
-        await writeFile(this.dbPath, JSON.stringify(tempArr, null, 4));
+        await this.fileDBRepo.sync(tempArr);
         this.fileDB = tempArr;
 
         // Remove file from directory payload
@@ -144,12 +117,12 @@ export class FileRepository {
     };
 
     private async pushFileToDirectory(folder: string | null, fileId: string): Promise<void> {
-        this.dirDB = await this.loadDirDB();
+        this.dirDB = await this.dirDBRepo.load();
         const dirIndex = this.dirDB.findIndex((d: directory) => d.id === folder);
         if (dirIndex !== -1) {
             if (!this.dirDB[dirIndex].payload.files.includes(fileId)) {
                 this.dirDB[dirIndex].payload.files.push(fileId);
-                await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
+                await this.dirDBRepo.sync(this.dirDB);
             }
         }
 
@@ -157,13 +130,13 @@ export class FileRepository {
     }
 
     private async removeFileFromDirectory(folder: string, fileId: string, root: boolean = false): Promise<void> {
-        this.dirDB = await this.loadDirDB();
+        this.dirDB = await this.dirDBRepo.load();
 
         const dirIndex = this.dirDB.findIndex(d => root ? (d.parentDir === null && d.name === "root") : (d.id === folder));
         if (dirIndex !== -1) {
             this.logger.info(`Found index of file`, { dirIndex, folder, fileId, root });
             this.dirDB[dirIndex].payload.files = this.dirDB[dirIndex].payload.files.filter((f: string) => f !== fileId);
-            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
+            await this.dirDBRepo.sync(this.dirDB);
         }
 
         this.logger.info(`Didn't found fileId from folder`, { dirIndex, folder, fileId, root });
@@ -171,8 +144,8 @@ export class FileRepository {
 
     async move(id: string, parent: string, newParent: string): Promise<fileView | null> {
         try {
-            this.dirDB = await this.loadDirDB();
-            this.fileDB = await this.loadFileDB();
+            this.dirDB = await this.dirDBRepo.load();
+            this.fileDB = await this.fileDBRepo.load();
 
             this.dirDB = this.dirDB.map(dir => {
                 if (dir.id === parent) {
@@ -198,9 +171,9 @@ export class FileRepository {
 
             this.fileDB = this.fileDB.map(file => file.id === id ? ({ ...file, parentDir: newParent }) : file)
 
-            await writeFile(this.dirDbPath, JSON.stringify(this.dirDB, null, 4));
-            await writeFile(this.dbPath, JSON.stringify(this.fileDB, null, 4));
-            
+            await this.dirDBRepo.sync(this.dirDB);
+            await this.fileDBRepo.sync(this.fileDB);
+
             const fetch = this.fileDB.find(f => f.id === id);
             if (fetch) {
                 return { filename: fetch.filename, id, length: fetch.size ?? 0 };

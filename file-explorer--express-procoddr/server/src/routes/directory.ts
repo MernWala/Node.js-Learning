@@ -1,7 +1,6 @@
 import express from "express";
 import { DirectoryController } from "../controllers/DirController";
 
-
 export const DirectoryRoutes = () => {
     
     const router = express.Router();
