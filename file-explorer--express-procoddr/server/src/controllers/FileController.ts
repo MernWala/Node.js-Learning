@@ -2,16 +2,19 @@ import { AppLogger } from "../util/AppLogger";
 import { Request, Response } from "express"
 import { action, response, Structure } from "../util/Structure";
 import { FileService } from "../service/FileService";
+import { DirectoryService } from "../service/DirectoryService";
 
 export class FileController {
     private logger: AppLogger;
     private struct: Structure;
     private service: FileService;
+    private dirService: DirectoryService;
 
     constructor() {
         this.logger = new AppLogger("FileController");
         this.struct = new Structure();
         this.service = new FileService();
+        this.dirService = new DirectoryService();
     }
 
     async create(req: Request, res: Response): Promise<Response> {
@@ -99,7 +102,7 @@ export class FileController {
             }
 
             this.logger.info(`Processing rename`, { id, newName: name });
-            const response = await this.service.rename(id, name);
+            const response = await this.service.update(id, name);
             return res.status(response?.status ?? 200).json(response);
         } catch (error) {
             this.logger.error(error as Error, {});
@@ -137,6 +140,53 @@ export class FileController {
                 message: "Server Error! Try again later.",
                 status: 500
             }));
+        }
+    }
+
+    async move(req: Request, res: Response): Promise<Response> {
+        try {
+            const { id, parent, newParent } = req.body as { id: string, parent: string, newParent: string };
+
+            // Validating file
+            const isValidFile = await this.service.validateFile(id);
+            if (!isValidFile) {
+                return res.status(404).json(this.struct.res({
+                    success: false,
+                    message: `File not found`,
+                    error: `File not found`,
+                    status: 404
+                }));
+            }
+
+            // Validating parent - directories
+            const key = ["Current", "New Parent"];
+            const validate = await Promise.all([
+                this.dirService.validateDirectory(parent),
+                this.dirService.validateDirectory(newParent),
+            ]);
+
+            for (let i = 0; i < validate.length; i++) {
+                if (!validate[i]) {
+                    return res.status(404).json(this.struct.res({
+                        success: false,
+                        message: `${key[i]} directory not found`,
+                        error: `${key[i]} directory not found`,
+                        status: 404
+                    }));
+                }
+            }
+
+            this.logger.info("Initiating file move", { id, parent, newParent });
+            const result = await this.service.move(id, parent, newParent);
+            return res.status(200).json(result);
+        } catch (error) {
+            this.logger.error(error as Error);
+            return res.status(500).json(this.struct.res({
+                success: false,
+                message: "Server Error",
+                error: "Internal server error",
+                status: 500
+            }))
         }
     }
 }

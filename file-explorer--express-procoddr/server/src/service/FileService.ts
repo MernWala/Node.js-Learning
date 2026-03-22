@@ -23,6 +23,16 @@ export class FileService {
         this.dirService = new DirectoryService();
     }
 
+    async validateFile(id: string): Promise<boolean> {
+        try {
+            const fetch = await this.repo.read(id);
+            return fetch ? true : false
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
         this.logger.info("Hitted FileService:create method", { filename, folder });
         // Validate folder exists if folder ID is provided
@@ -69,7 +79,7 @@ export class FileService {
                     try {
                         const st = await stat(filepath);
                         this.logger.info(`File written to disk successfully`, { id, filename: name, size: st.size });
-                        await this.repo.insert(this.struct.file({
+                        await this.repo.create(this.struct.file({
                             id,
                             filename: name,
                             parentDir: folder,
@@ -119,7 +129,7 @@ export class FileService {
 
         return new Promise(async (resolve, reject) => {
             try {
-                const file = await this.repo.get(id);
+                const file = await this.repo.read(id);
                 if (!file || !file?.filename) {
                     reject(this.struct.res({
                         success: false,
@@ -169,9 +179,9 @@ export class FileService {
         });
     };
 
-    rename = async (id: string, filename: string): Promise<response> => {
+    update = async (id: string, filename: string): Promise<response> => {
         try {
-            const curr = await this.repo.rename({ id, filename });
+            const curr = await this.repo.update({ id, filename });
             if (!curr) {
                 return this.struct.res({
                     success: false,
@@ -220,4 +230,29 @@ export class FileService {
             throw error;
         }
     };
+
+    async move(id: string, parent: string, newParent: string): Promise<response> {
+        try {
+            this.logger.info("File move started", { id, parent, newParent });
+            const result = await this.repo.move(id, parent, newParent);
+
+            if (result) {
+                return this.struct.res({
+                    success: true,
+                    message: "File moved",
+                    status: 200,
+                    file: result
+                });
+            } else {
+                return this.struct.res({
+                    success: false,
+                    message: "Move failed",
+                    status: 400
+                });
+            }
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
 }

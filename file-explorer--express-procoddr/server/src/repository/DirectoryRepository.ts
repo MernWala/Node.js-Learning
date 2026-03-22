@@ -9,11 +9,18 @@ export class DirRepository {
     private struct: Structure;
     private dbPath: string = "./db/directory.json";
     private logger: AppLogger = new AppLogger("DirRepository");
-    private fileRepo: FileRepository;
+    private fileRepo?: FileRepository;
 
     constructor() {
         this.struct = new Structure();
-        this.fileRepo = new FileRepository();
+    }
+
+    private getFileRepo(): FileRepository {
+        if (!this.fileRepo) {
+            this.fileRepo = new FileRepository();
+        }
+
+        return this.fileRepo;
     }
 
     private async loadDirDB(): Promise<directory[]> {
@@ -27,7 +34,7 @@ export class DirRepository {
         return this.dirDB;
     }
 
-    private async createRoot(): Promise<directory> {
+    async createRoot(): Promise<directory> {
         try {
             this.dirDB = await this.loadDirDB();
             const root: directory = {
@@ -112,7 +119,7 @@ export class DirRepository {
 
             // Populating files
             for (const file of (root?.payload.files ?? [])) {
-                const fetched = await this.fileRepo.get(file);
+                const fetched = await this.getFileRepo().read(file);
                 if (fetched) {
                     files.push(fetched);
                 }
@@ -249,7 +256,7 @@ export class DirRepository {
             if (obj) {
                 // Removing file one by by one
                 for (const file of (obj?.payload?.files ?? [])) {
-                    await this.fileRepo.delete(file, id);
+                    await this.getFileRepo().delete(file, id);
                 }
 
                 // Removing directories one by one
