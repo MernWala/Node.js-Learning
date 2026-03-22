@@ -11,7 +11,8 @@ export const DirectoryRoutes = () => {
     router.patch("/", controller.rename.bind(controller));
     router.patch("/move", controller.move.bind(controller));
     router.delete("/:id", controller.delete.bind(controller));
-    // router.get("/:id", controller.read.bind(controller));
+    router.get("/", controller.read.bind(controller));
+    router.get("/:id", controller.read.bind(controller));
 
     return router;
 }

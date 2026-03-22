@@ -47,25 +47,17 @@ export class FileRepository {
         return this.struct.file(temp);
     };
 
-    get(id: string): file | null {
+    async get(id: string): Promise<file | null> {
+        this.fileDB = await this.loadFileDB()
         const res = this.fileDB.find(f => f.id === id);
+
         if (res?.filename) {
             this.logger.info(`File retrieved: ${res.filename}`, { id, filename: res.filename });
             return res;
         }
+        
         this.logger.info(`File not found`, { id });
         return null;
-    };
-
-    async directoryExists(id: string): Promise<boolean> {
-        this.dirDB = await this.loadDirDB();
-        const exists = this.dirDB.some(d => d.id === id);
-        if (exists) {
-            this.logger.info(`Directory validation: EXISTS`, { directoryId: id });
-        } else {
-            this.logger.info(`Directory validation: NOT FOUND`, { directoryId: id });
-        }
-        return exists;
     };
 
     async getAll(folder: string | null): Promise<{ directories: directoryView[], files: file[] }> {

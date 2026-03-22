@@ -50,6 +50,16 @@ export class DirRepository {
         }
     }
 
+    private async get(id: string): Promise<directory | null> {
+        try {
+            this.dirDB = await this.loadDirDB();
+            return this.dirDB.find(d => d.id === id) ?? null;
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+
     async create(name: string, parent: string): Promise<directoryView | null> {
         try {
             this.dirDB = await this.loadDirDB();
@@ -59,7 +69,7 @@ export class DirRepository {
                 parent = root;
             }
 
-            if(!root && !parent) {
+            if (!root && !parent) {
                 parent = (await this.createRoot()).id;
             }
 
@@ -86,6 +96,41 @@ export class DirRepository {
         } catch (error) {
             this.logger.error(error as Error);
             return null;
+        }
+    }
+
+    async read(id: string): Promise<{ files: file[], directories: directory[] }> {
+        try {
+            this.logger.info("Reading directory", { id });
+
+            this.dirDB = await this.loadDirDB();
+            const files: file[] = [];
+            const directories: directory[] = [];
+
+            // Read the root or specified directory and return its payload (populated)
+            const root = this.dirDB.find((d) => !id || id === undefined ? (d.name === "root" && d.parentDir === null) : (d.id === id));
+
+            // Populating files
+            for (const file of (root?.payload.files ?? [])) {
+                const fetched = await this.fileRepo.get(file);
+                if (fetched) {
+                    files.push(fetched);
+                }
+            }
+
+            // Populating directories
+            for (const dir of (root?.payload.directory ?? [])) {
+                const fetched = await this.get(dir);
+                if (fetched) {
+                    directories.push(fetched);
+                }
+            }
+
+            this.logger.info("Fetched and populated data: ", { files: files.length, directories: directories.length });
+            return { files, directories };
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
         }
     }
 
@@ -233,4 +278,3 @@ export class DirRepository {
         }
     }
 }
-

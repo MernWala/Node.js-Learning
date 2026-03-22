@@ -24,6 +24,35 @@ export class DirectoryService {
         }
     }
 
+    async read(id: string): Promise<response> {
+        try {
+            // Validating id, if available
+            if (id) {
+                const isValid = await this.validateDirectory(id);
+                this.logger.info(`Validating directory id`, { id, isValid });
+                if (!isValid) {
+                    return this.struc.res({
+                        success: false,
+                        status: 404,
+                        message: "Id not found"
+                    });
+                }
+            }
+
+            const result = await this.repo.read(id);
+            return this.struc.res({
+                success: true,
+                message: "Directory readed.",
+                status: 200,
+                payload: result
+            });
+
+        } catch (error) {
+            this.logger.error(error as Error);
+            throw error;
+        }
+    }
+
     async validateDirectory(id: string): Promise<boolean> {
         try {
             this.logger.info('Validating directory id', { id });
@@ -62,7 +91,7 @@ export class DirectoryService {
             })
         }
     }
-    
+
     async delete(id: string): Promise<response> {
         try {
 

@@ -7,23 +7,26 @@ import { randomUUID } from "node:crypto"
 import { FileRepository } from "../repository/FileRepository.js";
 import { Request, Response } from "express"
 import mime from "mime";
+import { DirectoryService } from "./DirectoryService.js";
 
 type FileAction = 'download' | 'view'
 export class FileService {
     private logger: AppLogger;
     private struct: Structure;
     private repo: FileRepository;
+    private dirService: DirectoryService;
 
     constructor() {
         this.logger = new AppLogger("FileService");
         this.struct = new Structure();
         this.repo = new FileRepository();
+        this.dirService = new DirectoryService();
     }
 
     create = async (filename: string, req: Request, folder: string | null): Promise<response> => {
         this.logger.info("Hitted FileService:create method", { filename, folder });
         // Validate folder exists if folder ID is provided
-        if (folder && !await this.repo.directoryExists(folder)) {
+        if (folder && !await this.dirService.validateDirectory(folder)) {
             return this.struct.res({
                 success: false,
                 error: "Folder not found",
@@ -116,7 +119,7 @@ export class FileService {
 
         return new Promise(async (resolve, reject) => {
             try {
-                const file = this.repo.get(id);
+                const file = await this.repo.get(id);
                 if (!file || !file?.filename) {
                     reject(this.struct.res({
                         success: false,
@@ -165,35 +168,6 @@ export class FileService {
             }
         });
     };
-
-    readRoot = async (): Promise<response> => {
-        this.logger.info("Hitted FileService:readRoot method", {});
-        try {
-            const { files, directories } = await this.repo.getAll(null);
-            this.logger.info(`Root files loaded`, { totalFiles: files.length, totalDirectories: directories.length });
-
-            if (!files || !directories) {
-                this.logger.info(`No files found in root`, {});
-                return this.struct.res({
-                    success: false,
-                    message: "Failed to load data",
-                    error: "Unable to fetch data",
-                    status: 500
-                });
-            }
-
-            return this.struct.res({
-                success: true,
-                payload: { files, directories },
-                message: "Data loaded successfully",
-                error: null,
-                status: 200
-            });
-        } catch (error) {
-            this.logger.error(error as Error, {});
-            throw error;
-        }
-    }
 
     rename = async (id: string, filename: string): Promise<response> => {
         try {

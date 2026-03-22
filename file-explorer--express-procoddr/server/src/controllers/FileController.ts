@@ -48,9 +48,13 @@ export class FileController {
             const { action } = req.query as { action: action };
 
             if (!id) {
-                this.logger.info("Reading root files", {});
-                const response = await this.service.readRoot();
-                return res.status(response?.status ?? 200).json(response);
+                this.logger.info("File id not passed", { id });
+                return res.status(404).json(this.struct.res({
+                    success: false,
+                    message: "Id not found!",
+                    error: "Id not passed with api",
+                    status: 404
+                }));
             }
 
             this.logger.info(`Reading file with action`, { id, action });

@@ -7,7 +7,6 @@ export const FileRoutes = () => {
     const fileController = new FileController();
 
     router.post("/", fileController.create.bind(fileController));
-    router.get("/", fileController.read.bind(fileController));
     router.get("/:id", fileController.read.bind(fileController));
     router.patch("/", fileController.rename.bind(fileController));
     router.delete("/:id", fileController.delete.bind(fileController));

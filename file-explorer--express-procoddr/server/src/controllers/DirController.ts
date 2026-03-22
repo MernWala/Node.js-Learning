@@ -64,6 +64,23 @@ export class DirectoryController {
         }
     }
 
+    async read(req: Request, res: Response): Promise<Response> {
+        try {
+            const { id } = req.params as { id: string };
+            this.logger.info(`Attempting to read root directory`, { id });
+
+            const result = await this.service.read(id);
+            return res.status(200).json(result);
+        } catch (error) {
+            this.logger.error(error as Error);
+            return res.status(500).json(this.struct.res({
+                success: false,
+                message: "Server Error!",
+                status: 500
+            }))
+        }
+    }
+
     async rename(req: Request, res: Response): Promise<Response> {
         try {
             const { id, name } = req.body as { id: string, name: string };
