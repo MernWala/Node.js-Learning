@@ -20,7 +20,7 @@ export class FileController {
     async create(req: Request, res: Response): Promise<Response> {
         this.logger.info("CREATE method called.", {});
         try {
-            const { name, folder } = req.headers as { name: string, folder: string | null };
+            let { name, folder } = req.headers as { name: string, folder: string | null };
             if (!name) {
                 this.logger.info("Validation failed: File name not provided", {});
                 return res.status(400).json(this.struct.res({
@@ -28,6 +28,10 @@ export class FileController {
                     message: "File name not found.",
                     error: "File name not found.",
                 }));
+            }
+
+            if(folder === "null" || folder === "") {
+                folder = null;
             }
 
             const filename: string = Array.isArray(name) ? name.join(" ") : name;

@@ -10,7 +10,6 @@ const app = express();
 const version = "v2";
 
 app.use(cors({}));
-app.use(express.json());
 
 const logger = new AppLogger("./src/index.ts"); 
 
@@ -22,6 +21,13 @@ app.get("/health", (req: Request, res: Response) => {
         payload: null,
         status: 200,
     })
+});
+
+app.use((req, res, next) => {
+    if (req.path.includes('/api/v2/file/') && req.method === 'POST') {
+        return next();
+    }
+    express.json()(req, res, next);
 });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

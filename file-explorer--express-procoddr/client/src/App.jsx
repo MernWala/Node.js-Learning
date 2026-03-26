@@ -6,7 +6,8 @@ const App = () => {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/directory/*" element={<Home />} />
+        <Route path="/dir/:id" element={<Home />} />
+        <Route path="/file/:id" element={<Home />} />
       </Routes>
     </HashRouter>
   )
