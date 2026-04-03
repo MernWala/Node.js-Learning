@@ -21,34 +21,45 @@ export interface response {
     payload?: {
         files: file[],
         directories: directoryView[],
+        currentPath: PathView[],
     },
 }
 
 export interface file {
     id: string,
     filename: string | null,
-    parentDir?: string | null,
+    parentDir: string | null,
     size?: number,
     fileType?: string | null,
+    path?: PathView[]
 }
 
 export interface directory {
     id: string,
     name: string,
     parentDir: string | null,
-    payload: directoryPayload
+    payload: directoryPayload,
+    path?: PathView[]
 }
 
 export interface directoryView {
     id: string,
     name: string,
     parentDir: string | null,
+    path?: PathView[],
 }
 
 export interface fileView {
     filename: string | null,
     id: string,
     length: number,
+    parentDir?: string | null;
+    path?: PathView[],
+}
+
+export interface PathView {
+    id: string,
+    name: string,
 }
 
 export class Structure {

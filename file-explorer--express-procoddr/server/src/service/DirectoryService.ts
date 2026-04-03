@@ -44,7 +44,11 @@ export class DirectoryService {
                 success: true,
                 message: "Directory readed.",
                 status: 200,
-                payload: result
+                payload: {
+                    currentPath: result.currentPath,
+                    directories: result.directories,
+                    files: result.files
+                }
             });
 
         } catch (error) {

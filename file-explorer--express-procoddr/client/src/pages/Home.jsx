@@ -9,6 +9,7 @@ const Home = () => {
     const [file, setFile] = useState(null);
     const [uploadPercentage, setUploadPercentage] = useState(null);
     const [rename, setRename] = useState(null);
+    const [currentPath, setCurrentPath] = useState([]);
 
     useEffect(() => {
         if (location.pathname.includes("dir") || location.pathname === "/") {
@@ -22,6 +23,7 @@ const Home = () => {
                 .then(data => {
                     setFiles(data.payload.files);
                     setDirectories(data.payload.directories);
+                    setCurrentPath(data.payload.currentPath ?? []);
                 })
                 .catch(error => {
                     console.error(error);
@@ -115,7 +117,7 @@ const Home = () => {
     const handleCreateFolder = async () => {
         const name = prompt("Enter folder name", "New Folder");
         if (!name || name.trim() === "") return; // Cancel or empty input
-        
+
         try {
             const fetchApi = await fetch(`http://localhost:5000/api/v2/dir`, {
                 method: "POST",
@@ -160,6 +162,18 @@ const Home = () => {
                     </form>
                 </div>
             )}
+
+            <div style={{ margin: '20px 0' }}>
+                File Path:
+                <span style={{ display: "inline-flex", gap: "5px", margin: "0 5px", alignItems: "center" }}>
+                    {currentPath?.map(({ id, name }, index) => (
+                        <div key={id} style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                            <Link to={`/dir/${id}`}>{name}</Link>
+                            {index < currentPath.length - 1 && <span style={{ fontFamily: "monospace" }}>&gt;</span>}
+                        </div>
+                    ))}
+                </span>
+            </div>
 
             <ul>
                 {directories?.sort((a, b) => a.name.localeCompare(b.name)).map(({ id, name }) => (

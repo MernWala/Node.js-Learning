@@ -1,8 +1,10 @@
-import { directory, directoryView, file, response, Structure } from "../util/Structure";
+import { directory, directoryView, file, PathView, response, Structure } from "../util/Structure";
 import { AppLogger } from "../util/AppLogger";
 import { randomUUID } from "node:crypto";
 import { FileRepository } from "./FileRepository";
 import { DirectoryDBRepository } from "../util/DirectoryDBRepository";
+import { FileDBRepository } from "../util/FileDBRepository";
+import { EnrichPath } from "../util/EnrichPath";
 
 export class DirRepository {
     private dirDB: directory[] = [];
@@ -10,11 +12,15 @@ export class DirRepository {
     private logger: AppLogger;
     private fileRepo?: FileRepository;
     private dbRepo: DirectoryDBRepository;
+    private fileDBRepo: FileDBRepository;
+    private enrichPath: EnrichPath;
 
     constructor() {
         this.struct = new Structure();
         this.dbRepo = new DirectoryDBRepository();
         this.logger = new AppLogger("DirRepository");
+        this.fileDBRepo = new FileDBRepository();
+        this.enrichPath = new EnrichPath();
     }
 
     private getFileRepo(): FileRepository {
@@ -66,6 +72,7 @@ export class DirRepository {
 
             this.dirDB.push(newDir);
             await this.dbRepo.sync(this.dirDB);
+            const itsPath = await this.enrichPath.getFullPath(newDir.id);
             return { id: newDir.id, name: newDir.name, parentDir: newDir.parentDir };
 
         } catch (error) {
@@ -74,13 +81,14 @@ export class DirRepository {
         }
     }
 
-    async read(id: string): Promise<{ files: file[], directories: directory[] }> {
+    async read(id: string): Promise<{ files: file[], directories: directory[], currentPath: PathView[] }> {
         try {
             this.logger.info("Reading directory", { id });
 
             this.dirDB = await this.dbRepo.load();
             const files: file[] = [];
             const directories: directory[] = [];
+            let currentPath: PathView[] = [{ id: "/", name: "Home" }];
 
             // Read the root or specified directory and return its payload (populated)
             const root = this.dirDB.find((d) => !id || id === undefined ? (d.name === "root" && d.parentDir === null) : (d.id === id));
@@ -89,7 +97,8 @@ export class DirRepository {
             for (const file of (root?.payload.files ?? [])) {
                 const fetched = await this.getFileRepo().read(file);
                 if (fetched) {
-                    files.push(fetched);
+                    const getPath = await this.enrichPath.getFullPath(file, "file");
+                    files.push({ ...fetched, path: getPath });
                 }
             }
 
@@ -97,12 +106,18 @@ export class DirRepository {
             for (const dir of (root?.payload.directory ?? [])) {
                 const fetched = await this.get(dir);
                 if (fetched) {
-                    directories.push(fetched);
+                    const getPath = await this.enrichPath.getFullPath(fetched.id);
+                    directories.push({ ...fetched, path: getPath });
                 }
             }
 
+            currentPath = await this.enrichPath.getFullPath(id, "dir");
+            if (currentPath?.length === 0) {
+                currentPath = [{ id: "/", name: "Home" }]
+            }
+
             this.logger.info("Fetched and populated data: ", { files: files.length, directories: directories.length });
-            return { files, directories };
+            return { files, directories, currentPath };
         } catch (error) {
             this.logger.error(error as Error);
             throw error;
@@ -127,6 +142,7 @@ export class DirRepository {
         try {
             this.dirDB = await this.dbRepo.load();
             let change: directoryView | undefined;
+            const path = await this.enrichPath.getFullPath(id);
 
             this.dirDB = this.dirDB.map((dir) => {
                 if (dir.id == id) {
@@ -138,7 +154,7 @@ export class DirRepository {
 
             await this.dbRepo.sync(this.dirDB);
             if (change)
-                return change;
+                return { ...change, path };
             return null;
         } catch (error) {
             this.logger.error(error as Error);
@@ -150,13 +166,10 @@ export class DirRepository {
         try {
 
             this.logger.info(`Directory moving`, { id, parentDir, newParent });
-
             this.dirDB = await this.dbRepo.load();
-            let change: directoryView | undefined;
 
             this.dirDB = this.dirDB.map((dir: directory) => {
                 if (dir.id === id) {
-                    change = { id, name: dir.name, parentDir: newParent };
                     return { ...dir, parentDir: newParent };
                 } else if (dir.id === parentDir) {
                     return {
@@ -179,12 +192,27 @@ export class DirRepository {
                 }
             });
 
+            let path: PathView[] = [];
+            const change = this.dirDB.find(d => d.id === id);
+            if (change !== undefined && change !== null) {
+                path = await this.enrichPath.getFullPath(change.id);
+            }
+
+            if (change === undefined) {
+                return this.struct.res({
+                    message: "Server Error!",
+                    success: false,
+                    directory: undefined,
+                    status: 500
+                })
+            }
+
             await this.dbRepo.sync(this.dirDB);
             return this.struct.res({
                 success: true,
                 message: "Directory moved",
                 status: 200,
-                directory: change
+                directory: { ...change, path }
             });
 
         } catch (error) {
