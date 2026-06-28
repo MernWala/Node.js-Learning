@@ -1,0 +1,7 @@
+# All upload files
+storage/*
+
+# All DB files
+directoriesDB.json
+filesDB.json
+usersDB.json
